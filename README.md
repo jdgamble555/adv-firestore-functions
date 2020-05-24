@@ -10,7 +10,7 @@ import { eventExists, fullTextIndex } from '@jdgamble555/adv-firestore';
 
 **Full-text search**
 
-This will index your fields so that you can search them. No more Algolia or Elastic Search! No more indexing every letter! It will, however, create documents based on the number of words in the field. So a blog post with 300 words, will create 300 documents indexing 6 words (default number) at a time so you can search phrases etc. Since you generally write / update fields in firebase rarely, 300 documents is not a big deal to index, and will save you money on searching. The size of the document is just once foreign key field. This function will automatically create, delete, and update the indexes when necessary.  All of these functions also use transactions, batching, and chunking (100 documents at a time) to provide the best performance.
+This will index your fields so that you can search them. No more Algolia or Elastic Search! No more indexing every letter! It will, however, create documents based on the number of words in the field. So a blog post with 300 words, will create 300 documents indexing 6 words (default number) at a time so you can search phrases etc. Since you generally write / update fields in firebase rarely, 300 documents is not a big deal to index, and will save you money on searching. The size of the document is just one foreign key field. This function will automatically create, delete, and update the indexes when necessary.  All of these functions also use transactions, batching, and chunking (100 documents at a time) to provide the best performance.
 
 *Events --- very important!*
 
