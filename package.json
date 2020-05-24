@@ -1,6 +1,6 @@
 {
   "name": "@jdgamble555/adv-firestore",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "description": "Advanced Firestore tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
