@@ -10,7 +10,7 @@ const db = admin.firestore();
  * @param n - number of word chunks to index at a time
  * @param searchCol - name of search collection
  */
-export async function fullTextIndex(change: any, context: any, field: string, fk: string, n = 6, searchCol = '_search') {
+export async function fullTextIndex(change: any, context: any, field: string, fk = 'id', n = 6, searchCol = '_search') {
 
     // get collection
     const colId = context.resource.name.split('/')[5];
