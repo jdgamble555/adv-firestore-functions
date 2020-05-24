@@ -1,4 +1,4 @@
-# adv-firestore
+# Advanced Firestore Functions
 
 These are the back-end firestore functions that will allow you to create easy-to-use indexes. 
 
@@ -50,7 +50,8 @@ exports = module.exports = functions.firestore
 
 ```typescript
 let id = firebase.firestore.FieldPath.documentId();
-db.collection(`_search/COLLECTION_NAME/COLLECTION_FIELD`).orderBy(id).startAt(term).endAt(term + '~').limit(5);
+const col = `_search/COLLECTION_NAME/COLLECTION_FIELD`;
+db.collection(col).orderBy(id).startAt(term).endAt(term + '~').limit(5);
 ```
 I will eventually make a front-end package for vanilla js or angular. You can search mulitple fields at the same time by combining the promises or combineLatest, for example, and sorting them on the front end with map. It will automatically index the correct fields and collection names.  Use **term** to search. I would also recommend using a **debounceTime** function with **rxjs** to only search when you quit typing.
 

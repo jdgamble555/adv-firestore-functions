@@ -1,7 +1,7 @@
 {
-  "name": "@jdgamble555/adv-firestore",
-  "version": "1.0.8",
-  "description": "Advanced Firestore tools and indexing",
+  "name": "adv-firestore-functions",
+  "version": "1.0.0",
+  "description": "Advanced Firestore Functions tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
@@ -14,7 +14,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jdgamble555/adv-firestore.git"
+    "url": "git+https://github.com/jdgamble555/adv-firestore-functions.git"
   },
   "keywords": [
     "firestore",
@@ -27,9 +27,9 @@
   "author": "Jonathan Gamble",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/jdgamble555/adv-firestore/issues"
+    "url": "https://github.com/jdgamble555/adv-firestore-functions/issues"
   },
-  "homepage": "https://github.com/jdgamble555/adv-firestore#readme",
+  "homepage": "https://github.com/jdgamble555/adv-firestore-functions#readme",
   "devDependencies": {
     "tslint": "^6.1.2",
     "typescript": "^3.9.3"
