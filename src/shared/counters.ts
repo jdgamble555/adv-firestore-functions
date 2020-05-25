@@ -65,8 +65,14 @@ export async function colCounter(change: any, context: any, countersCol = '_coun
  * @param del - whether or not to delete the document
  * @param n - 1 for create, -1 for delete
  */
-export async function queryCounter(change: any, queryRef: any, countRef: any, countName: string, del = 0, n = 0) {
+export async function queryCounter(change: any, context: any, queryRef: any, countRef: any, countName: string = '', del = 0, n = 0) {
 
+    // collection name
+    const colId = context.resource.name.split('/')[5];
+
+    if (!countName) {
+        countName = colId + 'Count';
+    }
     // simplify event type
     const createDoc = change.after.exists && !change.before.exists;
 
