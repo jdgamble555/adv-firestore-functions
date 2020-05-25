@@ -1,7 +1,17 @@
-export {
-    arrayChunk, getCatArray, arraysEqual, findSingleValues, canContinue, getFriendlyURL, isTriggerFunction
-}
+import * as admin from 'firebase-admin';
+try { admin.initializeApp(); } catch (e) { }
 
+export {
+    arrayChunk,
+    getCatArray,
+    arraysEqual,
+    findSingleValues,
+    canContinue,
+    getFriendlyURL,
+    isTriggerFunction,
+    valueIsChanged,
+    triggerFunction
+}
 /**
 * Return a friendly url for the db
 * @param url
@@ -76,6 +86,25 @@ function arraysEqual(a1: Array<any>, a2: Array<any>): boolean {
     return JSON.stringify(a1) === JSON.stringify(a2);
 }
 /**
+ * Determine if a field value has been updated
+ * @param change 
+ * @param val 
+ */
+function valueIsChanged(change: any, val: string): boolean {
+
+    // simplify input data
+    const after: any = change.after.exists ? change.after.data() : null;
+    const before: any = change.before.exists ? change.before.data() : null;
+
+    if (!before || !after || !before[val] || !after[val]) {
+        return true;
+    }
+    if (arraysEqual(before[val], after[val])) {
+        return false;
+    }
+    return true;    
+}
+/**
  * Returns the category array
  * @param category 
  */
@@ -90,6 +119,38 @@ function getCatArray(category: string): Array<any> {
         cat = cat.split('/').slice(0, -1).join('/');
     }
     return catArray;
+}
+/**
+ * trigger Function to update dates and filtered values
+ * @param change 
+ * @param data 
+ * @param dates 
+ */
+async function triggerFunction(change: any, data: any = {}, dates = true) {
+
+    // simplify event types
+    const createDoc = change.after.exists && !change.before.exists;
+    const updateDoc = change.before.exists && change.after.exists;
+
+    if (dates) {
+        if (createDoc) {
+            // createdAt
+            data.createdAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+        if (updateDoc) {
+            // updatedAt
+            data.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+    }
+    if (Object.keys(data).length) {
+        console.log("Running function again to update data:", JSON.stringify(data));
+        await change.after.ref
+            .set(data, { merge: true })
+            .catch((e: any) => {
+                console.log(e);
+            });
+    }
+    return null;
 }
 /**
  * loop through arrays in chunks
