@@ -146,7 +146,17 @@ There are many options for these as well, see actual code for changing default p
 
 The default counter variable can be changed on all documents. See the code for each function.  You can also change the name of the index collections.  The defaults are *_tags, _search, _uniques, _counters, _categories, _events*.
 
+There are also some helper functions like **valueIsChanged** to see if a field has changed:
+
+```typescript
+if (valueIsChanged(change, 'category')) {
+// do something
+}
+```
+
+I will add more later.
+
 There is more to come as I simplify my firebase functions!
-See [Fireblog.io][1] for more examples!
+See [Fireblog.io][1] for more examples (whenever I finally update it)!
 
 [1]: http://fireblog.io "Fireblog.io"
