@@ -102,7 +102,7 @@ function valueIsChanged(change: any, val: string): boolean {
     if (arraysEqual(before[val], after[val])) {
         return false;
     }
-    return true;    
+    return true;
 }
 /**
  * Returns the category array
@@ -131,6 +131,7 @@ async function triggerFunction(change: any, data: any = {}, dates = true) {
     // simplify event types
     const createDoc = change.after.exists && !change.before.exists;
     const updateDoc = change.before.exists && change.after.exists;
+    const writeDoc = createDoc || updateDoc;
 
     if (dates) {
         if (createDoc) {
@@ -142,13 +143,15 @@ async function triggerFunction(change: any, data: any = {}, dates = true) {
             data.updatedAt = admin.firestore.FieldValue.serverTimestamp();
         }
     }
-    if (Object.keys(data).length) {
-        console.log("Running function again to update data:", JSON.stringify(data));
-        await change.after.ref
-            .set(data, { merge: true })
-            .catch((e: any) => {
-                console.log(e);
-            });
+    if (writeDoc) {
+        if (Object.keys(data).length) {
+            console.log("Running function again to update data:", JSON.stringify(data));
+            await change.after.ref
+                .set(data, { merge: true })
+                .catch((e: any) => {
+                    console.log(e);
+                });
+        }
     }
     return null;
 }

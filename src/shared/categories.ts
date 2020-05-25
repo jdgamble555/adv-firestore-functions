@@ -14,6 +14,13 @@ const db = admin.firestore();
  */
 export async function catDocCounter(change: any, context: any, counter: string = '', pathField = 'catPath', arrayField = 'catArray', field = 'category', catCol = 'categories') {
 
+    // simplify event types
+    const createDoc = change.after.exists && !change.before.exists;
+    const deleteDoc = change.before.exists && !change.after.exists;
+    const shiftDoc = createDoc || deleteDoc;
+    if (!shiftDoc) {
+        return null;
+    }
     // simplify input data
     const after: any = change.after.exists ? change.after.data() : null;
     const before: any = change.before.exists ? change.before.data() : null;

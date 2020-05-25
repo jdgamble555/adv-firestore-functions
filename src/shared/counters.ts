@@ -9,15 +9,19 @@ const db = admin.firestore();
  */
 export async function colCounter(change: any, context: any, countersCol = '_counters') {
 
+    // simplify event types
+    const createDoc = change.after.exists && !change.before.exists;
+    const deleteDoc = change.before.exists && !change.after.exists;
+    const shiftDoc = createDoc || deleteDoc;
+    if (!shiftDoc) {
+        return null;
+    }
     // get parent collection
     // TODO: will need to be edited for sub collections...
     const parentCol = context.resource.name.split('/').slice(0, -1).pop();
     //const parentDocId = context.resource.name.split('/').pop();
 
     console.log("Updating ", parentCol, " counter");
-
-    // simplify event types
-    const createDoc = change.after.exists && !change.before.exists;
 
     // check for sub collection
     const isSubCol = context.params.subDocId;
@@ -67,15 +71,19 @@ export async function colCounter(change: any, context: any, countersCol = '_coun
  */
 export async function queryCounter(change: any, context: any, queryRef: any, countRef: any, countName: string = '', del = 0, n = 0) {
 
+    // simplify event types
+    const createDoc = change.after.exists && !change.before.exists;
+    const deleteDoc = change.before.exists && !change.after.exists;
+    const shiftDoc = createDoc || deleteDoc;
+    if (!shiftDoc) {
+        return null;
+    }
     // collection name
     const colId = context.resource.name.split('/')[5];
 
     if (!countName) {
         countName = colId + 'Count';
     }
-    // simplify event type
-    const createDoc = change.after.exists && !change.before.exists;
-
     console.log("Updating ", countName, " counter on ", countRef.path);
 
     // doc references
