@@ -154,7 +154,13 @@ if (valueIsChanged(change, 'category')) {
 }
 ```
 
-I will add more later.
+and **getValue** to get the latest value of a field:
+
+```typescript
+const category = getValue(change, 'category');
+```
+
+I will add more documentation later.
 
 There is more to come as I simplify my firebase functions!
 See [Fireblog.io][1] for more examples (whenever I finally update it)!

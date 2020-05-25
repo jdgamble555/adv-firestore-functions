@@ -10,7 +10,8 @@ export {
     getFriendlyURL,
     isTriggerFunction,
     valueIsChanged,
-    triggerFunction
+    triggerFunction,
+    getValue
 }
 /**
 * Return a friendly url for the db
@@ -84,6 +85,19 @@ function findSingleValues(a1: Array<any>, a2: Array<any>): Array<any> {
  */
 function arraysEqual(a1: Array<any>, a2: Array<any>): boolean {
     return JSON.stringify(a1) === JSON.stringify(a2);
+}
+/**
+ * Returns the latest value of a field
+ * @param change 
+ * @param val 
+ */
+function getValue(change: any, val: string): string {
+
+    // simplify input data
+    const after: any = change.after.exists ? change.after.data() : null;
+    const before: any = change.before.exists ? change.before.data() : null;
+
+    return after ? after[val] : before[val];
 }
 /**
  * Determine if a field value has been updated
