@@ -118,7 +118,7 @@ await catDocCounter(change, context);
 
 **Trigger Functions**
 
-You can change the trigger functions to update the same document with a filtered or new value.  For example, if you have a value that you want to create on a function, and them go back and update it (a friendly title in lowercase).
+You can change the trigger functions to update the same document with a filtered or new value.  For example, if you have a value that you want to create on a function, and then go back and update it (a friendly title in lowercase).
 
 ```typescript
 // define data
@@ -131,6 +131,8 @@ await triggerFunction(change, data);
 
 This will also automatically update **createdAt** and **updatedAt** dates in your document. This is good if you don't want the user to be able to hack these dates on the front end.  You can turn this off by passing in **false** as the last paramenter.
 
+Note: *If you only want to update the dates **createdAt** and **updatedAt**, simply leave out the data parameter.*
+
 However, you need to add **isTriggerFunction** to the top of your code to prevent infinite loops:
 
 ```typescript
@@ -142,7 +144,7 @@ if (await eventExists(context.eventId) || isTriggerFunction(change)) {
 
 There are many options for these as well, see actual code for changing default parameters.
 
-The default counter variable can be changed on all documents. See the code for each function.  You can also change the name of the index collections.  The defaults are _tags, _search, _uniques, _counters, _categories, _events
+The default counter variable can be changed on all documents. See the code for each function.  You can also change the name of the index collections.  The defaults are *_tags, _search, _uniques, _counters, _categories, _events*.
 
 There is more to come as I simplify my firebase functions!
 See [Fireblog.io][1] for more examples!
