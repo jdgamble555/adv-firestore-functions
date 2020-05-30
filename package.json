@@ -1,13 +1,14 @@
 {
   "name": "adv-firestore-functions",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Advanced Firestore Functions tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "lint": "tslint tsconfig.json"
+    "format": "prettier --write \"src/**/*.ts\"",
+    "lint": "tslint -p tsconfig.json"
   },
   "files": [
     "lib/**/*"
@@ -31,7 +32,9 @@
   },
   "homepage": "https://github.com/jdgamble555/adv-firestore-functions#readme",
   "devDependencies": {
+    "prettier": "^2.0.5",
     "tslint": "^6.1.2",
+    "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.9.3"
   },
   "dependencies": {
