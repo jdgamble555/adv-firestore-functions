@@ -38,15 +38,19 @@ export async function eventExists(eventId: string, eventsCol = '_events') {
   yesterday.setDate(yesterday.getDate() - 1);
 
   // delete all _event docs older than yesterday
+  const delDocs: any = [];
   const eventFilter = db.collection(eventsCol).where('completed', '<=', yesterday);
-  const eventFilterSnap: any = await eventFilter.get();
-
+  const eventFilterSnap = await eventFilter.get();
+  eventFilterSnap.forEach((doc: any) => {
+    // collect all document references
+    delDocs.push(doc.ref);
+  });
   // chunk index array at 100 items
-  const chunks = new ArrayChunk(eventFilterSnap);
+  const chunks = new ArrayChunk(delDocs);
   chunks.forEachChunk(async (ch: any[]) => {
     const batch = db.batch();
-    ch.forEach((doc: any) => {
-      batch.delete(doc.ref);
+    ch.forEach((docRef: any) => {
+      batch.delete(docRef);
     });
     // delete chunk of events
     console.log('Deleting old events');

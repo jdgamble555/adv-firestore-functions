@@ -82,13 +82,13 @@ export async function fullTextIndex(change: any, context: any, field: string, fk
         if (createDoc || before[field] !== after[field] || fkChange) {
 
             // add new foreign key field(s)
-            const data: any = {};
+            const fkeys: any = {};
             if (Array.isArray(fk)) {
                 fk.forEach((k: any) => {
-                    data[k] = after ? after[k] : before[k];
+                    fkeys[k] = after ? after[k] : before[k];
                 });
             } else {
-                data[fk] = after ? after[fk] : before[fk];
+                fkeys[fk] = after ? after[fk] : before[fk];
             }
             // new indexes
             let fieldValue = after[field];
@@ -110,10 +110,12 @@ export async function fullTextIndex(change: any, context: any, field: string, fk
                         return;
                     }
                     const searchRef = db.doc(`${searchCol}/${colId}/${field}/${phrase}${delim}${docId}`);
+                    const data: any = {};
 
                     // if index for array and map types
                     if (type === 'map' || type === 'array') {
                         // map and array term index
+
                         let v = '';
                         const a: any[] = [];
                         const m: any = {};
@@ -127,7 +129,7 @@ export async function fullTextIndex(change: any, context: any, field: string, fk
                         }
                         data['terms'] = type === 'map' ? m : a;
                     }
-                    batch.set(searchRef, data);
+                    batch.set(searchRef, { ...fkeys, ...data });
                 });
                 console.log('Creating batch of docs on ', field, ' field');
                 await batch.commit().catch((e: any) => {
