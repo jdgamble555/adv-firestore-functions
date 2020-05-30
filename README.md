@@ -155,24 +155,6 @@ const userId = getValue(change, 'userId');
 const userRef = db.doc(`users/${userId}`);
 ```
 
-**Category counters**
-
-This is specific if you want to index categories. I will eventually post code on this to explain it, but usage is like so:
-
-On the **categories** collection:
-
-```typescript
-// update all sub category counters
-await subCatCounter(change, context);
-```
-
-On the **posts** collection, or whatever your categories contain:
-
-```typescript
-// [collection]Count on categories and its subcategories
-await catDocCounter(change, context);
-```
-
 **Trigger Functions**
 
 You can change the trigger functions to update the same document with a filtered or new value.  For example, if you have a value that you want to create on a function, and then go back and update it (a friendly title in lowercase).
@@ -215,6 +197,26 @@ and **getValue** to get the latest value of a field:
 
 ```typescript
 const category = getValue(change, 'category');
+```
+
+Last, but not least I have these specific functions for categories. I will explain these in a front-end module eventually, but until then don't worry about them. I am adding the usage case just for completeness.
+
+**Category counters**
+
+This is specific if you want to index categories. I will eventually post code on this to explain it, but usage is like so:
+
+On the **categories** collection:
+
+```typescript
+// update all sub category counters
+await subCatCounter(change, context);
+```
+
+On the **posts** collection, or whatever your categories contain:
+
+```typescript
+// [collection]Count on categories and its subcategories
+await catDocCounter(change, context);
 ```
 
 I will try and update the documention as these functions progress. There is plenty of logging, so check your logs for problems!
