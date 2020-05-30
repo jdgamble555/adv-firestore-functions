@@ -108,6 +108,7 @@ If you are using **map** or **array**, you may have something like this:
 const col = `_search/COLLECTION_NAME/COLLECTION_FIELD`;
 db.collection(col).where('terms.' + term, '==', true); // map
 db.collection(col).where('terms', 'array-contains', term); // array
+```
 
 **Index unique fields**
 
