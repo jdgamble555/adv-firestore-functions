@@ -112,7 +112,7 @@ db.collection(col).where('terms', 'array-contains', term); // array
 
 **Index unique fields**
 
-Unique fields is pretty simple, add the unique field function and it will update automatically everytime there is a change. Here you can index the a unique 'title' field. Check code for options like **friendlyURL**.
+Unique fields is pretty simple, add the unique field function and it will update automatically everytime there is a change. Here you can index the unique 'title' field. Check code for options like **friendlyURL**.
 
 ```typescript
 await uniqueField(change, context, 'title');
