@@ -26,7 +26,9 @@ functions.firestore
 
 **Full-text search**
 
-This will index your fields so that you can search them. No more Algolia or Elastic Search! No more indexing every letter! It will, however, create documents based on the number of words in the field. So a blog post with 100 words, will create 100 documents indexing 6 words (default number) at a time so you can search phrases etc. Since you generally write / update fields in firebase rarely, 100 documents is not a big deal to index, and will save you money on searching. The size of the document is just one foreign key field. This function will automatically create, delete, and update the indexes when necessary.  All of these functions also use transactions, batching, and chunking (100 documents at a time) to provide the best performance.
+*WARNING!* - This function can create A LOT of documents if you have a big text field. However, it is worth it if you only **write** sporatically.
+
+This will index your fields so that you can search them. No more Algolia or Elastic Search! It will create documents based on the number of words in the field. So a blog post with 100 words, will create 100 documents indexing 6 words at a time. You can change this number. Since you generally write / update fields in firebase rarely, 100 documents is not a big deal to index, and will save you money on searching. The size of the document is just 6 words, plus the other foreign key fields you want to index. This function will automatically create, delete, and update the indexes when necessary.  All of these functions use transactions, batching, and chunking (100 documents at a time) to provide the best performance.
 
 **Events -- VERY IMPORTANT!**
 
@@ -48,6 +50,49 @@ searchable.forEach(async (field: string) => {
 });
 ```
 
+--options--
+
+```typescript
+await fullTextIndex(change, context, 'field-to-index', ['foreign', 'keys', 'to', 'index']);
+```
+The foreign keys to index will be all of the fields you will get back in a search. It defaults to ONLY the **document id**, however, you can add or change this to whatever fields you like.
+
+```typescript
+await fullTextIndex(change, context, field, foreign-keys, type);
+```
+The **type** input defaults to 'id'.
+--id - just makes the document searchable from the **id** field using the *~* trick. This is included in all options and will default to the 6 word chunk you are searching.
+--map - makes the document searchable using a **map** of **terms** (same as document id)
+--array - makes the document searchable using an **array** of **terms** (same as document id)
+
+```json
+// map
+{
+    terms: {
+        a: true,
+        al: true,
+        also: true,
+        also : true,
+        also t: true
+        ...
+    }
+}
+// array
+{
+    terms: [
+        a,
+        al,
+        als,
+        also,
+        also ,
+        also t,
+        ...
+    ]
+}
+```
+
+**Maps** and **Arrays** are useful when you want to do complex searching, depending on what your constraints are. They do require more space on your documents and database size, but do not create any additional documents. Obviously searching is still limited to firestore's limits, but you can now use something similar to **startsWith()**, if it were a real function.
+
 *Front-end:* This will depend on your implementation, but generally, you will use something like the following code:
 
 ```typescript
@@ -56,6 +101,13 @@ const col = `_search/COLLECTION_NAME/COLLECTION_FIELD`;
 db.collection(col).orderBy(id).startAt(term).endAt(term + '~').limit(5);
 ```
 I will eventually make a front-end package for vanilla js or angular. You can search mulitple fields at the same time by combining the promises or combineLatest, for example, and sorting them on the front end with map. It will automatically index the correct fields and collection names.  Use **term** to search. I would also recommend using a **debounceTime** function with **rxjs** to only search when you quit typing.
+
+If you are using **map** or **array**, you may have something like this:
+
+```typescript
+const col = `_search/COLLECTION_NAME/COLLECTION_FIELD`;
+db.collection(col).where('terms.' + term, '==', true); // map
+db.collection(col).where('terms', 'array-contains', term); // array
 
 **Index unique fields**
 
@@ -86,15 +138,19 @@ await colCounter(change, context);
 
 Query counters are very interesting, and will save you a lot of time.  For example, you can count the number of documents a user has, or the number of categories a post has, and save it on the original document.
 
+(See below for the *getValue* function)
+
 ```typescript
 // postsCount on usersDoc
-const userRef = after ? after.userDoc : before.userDoc;
+import { eventExists, queryCounter, getValue } from 'adv-firestore-functions';
+
+const userRef = getValue(change, 'userDoc');
 const postsQuery = db.collection('posts').where('userDoc', "==", userRef);
 await queryCounter(change, context, postsQuery, userRef);
 ```
 This assumes you saved the userDoc as a reference, but you could easily create one with the document id:
 ```typescript
-const userId = after ? after.userId : before.userId;
+const userId = getValue(change, 'userId');
 const userRef = db.doc(`users/${userId}`);
 ```
 
@@ -137,7 +193,7 @@ However, you need to add **isTriggerFunction** to the top of your code to preven
 
 ```typescript
 // don't run if repeated function
-if (await eventExists(context.eventId) || isTriggerFunction(change)) {
+if (await eventExists(context.eventId) || isTriggerFunction(change, context.eventId)) {
     return null;
 }
 ```
@@ -160,7 +216,7 @@ and **getValue** to get the latest value of a field:
 const category = getValue(change, 'category');
 ```
 
-I will add more documentation later.
+I will try and update the documention as these functions progress. There is plenty of logging, so check your logs for problems!
 
 There is more to come as I simplify my firebase functions!
 See [Fireblog.io][1] for more examples (whenever I finally update it)!

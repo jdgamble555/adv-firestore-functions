@@ -61,6 +61,7 @@ export async function fullTextIndex(change: any, context: any, field: string, fk
                 // collect all document references
                 delDocs.push(doc.ref);
             });
+            const numDocs = delDocs.length;
             // chunk index array at 100 items
             const chunks = new ArrayChunk(delDocs);
             chunks.forEachChunk(async (ch: any[]) => {
@@ -74,6 +75,7 @@ export async function fullTextIndex(change: any, context: any, field: string, fk
                     console.log(e);
                 });
             });
+            console.log('Finished deleting ', numDocs, ' docs on ', field, ' field');
         }
     }
     // create or update
@@ -99,6 +101,7 @@ export async function fullTextIndex(change: any, context: any, field: string, fk
             }
             console.log('Generating index array on ', field, ' field');
             const index = createIndex(fieldValue, n);
+            const numDocs = index.length;
 
             // chunk index array at 100 items
             const chunks = new ArrayChunk(index);
@@ -136,6 +139,7 @@ export async function fullTextIndex(change: any, context: any, field: string, fk
                     console.log(e);
                 });
             });
+            console.log('Finished creating ', numDocs, ' docs on ', field, ' field');
         }
     }
     return null;
