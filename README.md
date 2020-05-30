@@ -62,13 +62,13 @@ await fullTextIndex(change, context, field, foreign-keys, type);
 ```
 The **type** input defaults to 'id', and is indexed on all options.   
 --id - just makes the document searchable from the **id** field using the *~* trick on the 6 word chunk you are searching.  
---map - makes the document searchable using a **map** of **terms** (same as document id)  
---array - makes the document searchable using an **array** of **terms** (same as document id)  
+--map - makes the document searchable using a **map** of **_terms** (same as document id)  
+--array - makes the document searchable using an **array** of **_terms** (same as document id)  
 
 ```json
 // map
 {
-    terms: {
+    _terms: {
         a: true,
         al: true,
         also: true,
@@ -79,7 +79,7 @@ The **type** input defaults to 'id', and is indexed on all options.
 }
 // array
 {
-    terms: [
+    _terms: [
         a,
         al,
         als,
@@ -106,8 +106,8 @@ If you are using **map** or **array**, you may have something like this:
 
 ```typescript
 const col = `_search/COLLECTION_NAME/COLLECTION_FIELD`;
-db.collection(col).where('terms.' + term, '==', true); // map
-db.collection(col).where('terms', 'array-contains', term); // array
+db.collection(col).where('_terms.' + term, '==', true); // map
+db.collection(col).where('_terms', 'array-contains', term); // array
 ```
 
 **Index unique fields**
