@@ -53,7 +53,7 @@ function canContinue(after: any, before: any): boolean {
  * Check for trigger function
  * @param change
  */
-function isTriggerFunction(change: any) {
+function isTriggerFunction(change: any, eventId: string) {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
@@ -61,7 +61,7 @@ function isTriggerFunction(change: any) {
   const updateDoc = change.before.exists && change.after.exists;
 
   if (updateDoc && !canContinue(after, before)) {
-    console.log('Trigger function run');
+    console.log('Trigger function run: ', eventId);
     return true;
   }
   return false;

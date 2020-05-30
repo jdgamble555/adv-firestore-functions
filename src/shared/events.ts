@@ -22,7 +22,7 @@ export async function eventExists(eventId: string, eventsCol = '_events') {
 
   // do nothing if event exists
   if (eventSnap.exists) {
-    console.log('Duplicate function run');
+    console.log('Duplicate function run: ', eventId);
     return true;
   }
   // add event and update size
