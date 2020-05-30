@@ -60,10 +60,10 @@ The foreign keys to index will be all of the fields you will get back in a searc
 ```typescript
 await fullTextIndex(change, context, field, foreign-keys, type);
 ```
-The **type** input defaults to 'id'.
---id - just makes the document searchable from the **id** field using the *~* trick. This is included in all options and will default to the 6 word chunk you are searching.
---map - makes the document searchable using a **map** of **terms** (same as document id)
---array - makes the document searchable using an **array** of **terms** (same as document id)
+The **type** input defaults to 'id', and is indexed on all options.   
+--id - just makes the document searchable from the **id** field using the *~* trick on the 6 word chunk you are searching.  
+--map - makes the document searchable using a **map** of **terms** (same as document id)  
+--array - makes the document searchable using an **array** of **terms** (same as document id)  
 
 ```json
 // map
