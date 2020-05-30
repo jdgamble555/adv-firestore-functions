@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 try {
   admin.initializeApp();
@@ -13,9 +14,11 @@ export {
   canContinue,
   getFriendlyURL,
   isTriggerFunction,
-  valueIsChanged,
+  valueChange,
   triggerFunction,
   getValue,
+  fkChange,
+  aggregateData,
 };
 /**
  * Return a friendly url for the db
@@ -53,7 +56,7 @@ function canContinue(after: any, before: any): boolean {
  * Check for trigger function
  * @param change
  */
-function isTriggerFunction(change: any, eventId: string) {
+function isTriggerFunction(change: functions.Change<functions.firestore.DocumentSnapshot>, eventId: string) {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
@@ -93,7 +96,7 @@ function arraysEqual(a1: any[], a2: any[]): boolean {
  * @param change
  * @param val
  */
-function getValue(change: any, val: string): string {
+function getValue(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): string {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
@@ -105,7 +108,7 @@ function getValue(change: any, val: string): string {
  * @param change
  * @param val
  */
-function valueIsChanged(change: any, val: string): boolean {
+function valueChange(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
@@ -134,12 +137,99 @@ function getCatArray(category: string): any[] {
   return catArray;
 }
 /**
+ * check for foreign key field(s) change
+ * @param change
+ * @param fk
+ */
+function fkChange(change: functions.Change<functions.firestore.DocumentSnapshot>, fk: any) {
+  // simplify input data
+  const after: any = change.after.exists ? change.after.data() : null;
+  const before: any = change.before.exists ? change.before.data() : null;
+
+  if (Array.isArray(fk)) {
+    for (const k of fk) {
+      if (before[k] !== after[k]) {
+        return true;
+      }
+    }
+    return false;
+  }
+  return before[fk] !== after[fk];
+}
+async function aggregateData(
+  context: functions.EventContext,
+  targetRef: FirebaseFirestore.DocumentReference,
+  queryRef: FirebaseFirestore.Query,
+  saveFields: string[],
+  lastActivity: string = '',
+  lastActivityFk: string = '',
+  aggregateField: string = '',
+  data: any = {},
+  n: number = 3,
+) {
+  // collection name
+  const colId = context.resource.name.split('/')[5];
+
+  if (!aggregateField) {
+    aggregateField = colId + 'Aggregate';
+  }
+  if (!lastActivity) {
+    lastActivity = colId + 'LastActivity';
+  }
+  data[aggregateField] = [];
+
+  // doc references
+  const targetSnap = await targetRef.get();
+  const querySnap = await queryRef.limit(n).get();
+
+  // last doc data
+  const lastQuery: any = querySnap.docs[querySnap.size - 1].data();
+  const lastTarget: any = targetSnap.data();
+
+  // if not specified, use dates as last activity
+  if (!lastActivityFk) {
+    const checkDate = 'updatedAt';
+    if (lastQuery[checkDate]) {
+      lastActivityFk = checkDate;
+    } else {
+      lastActivityFk = 'createdAt';
+    }
+  }
+  // if document already has latest data, do nothing
+  if (lastTarget[lastActivity] === lastQuery[lastActivityFk]) {
+    return null;
+  }
+  // get the latest data, save it
+  querySnap.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot, index: number) => {
+    const d = doc.data();
+    const a: any = {};
+    saveFields.forEach((field: string) => {
+      a[field] = d[field];
+    });
+    data[aggregateField].push(a);
+
+    // if last element
+    if (index === saveFields.length - 1) {
+      data[lastActivity] = d[lastActivityFk];
+    }
+  });
+  console.log('Aggregating ', colId, ' data on ', targetRef.path);
+  await targetRef.set(data, { merge: true }).catch((e: any) => {
+    console.log(e);
+  });
+  return null;
+}
+/**
  * trigger Function to update dates and filtered values
  * @param change
  * @param data
  * @param dates
  */
-async function triggerFunction(change: any, data: any = {}, dates = true) {
+async function triggerFunction(
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  data: any = {},
+  dates = true,
+) {
   // simplify event types
   const createDoc = change.after.exists && !change.before.exists;
   const updateDoc = change.before.exists && change.after.exists;

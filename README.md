@@ -185,10 +185,10 @@ There are many options for these as well, see actual code for changing default p
 
 The default counter variable can be changed on all documents. See the code for each function.  You can also change the name of the index collections.  The defaults are *_tags, _search, _uniques, _counters, _categories, _events*.
 
-There are also some helper functions like **valueIsChanged** to see if a field has changed:
+There are also some helper functions like **valueChange** to see if a field has changed:
 
 ```typescript
-if (valueIsChanged(change, 'category')) {
+if (valueChange(change, 'category')) {
 // do something
 }
 ```

@@ -11,7 +11,6 @@ const db = admin.firestore();
  * @returns - true if first run
  */
 export async function eventExists(eventId: string, eventsCol = '_events') {
-
   // TODO: add date input
 
   const { ArrayChunk } = require('./tools');
@@ -45,6 +44,7 @@ export async function eventExists(eventId: string, eventsCol = '_events') {
     // collect all document references
     delDocs.push(doc.ref);
   });
+  const numDocs = delDocs.length;
   // chunk index array at 100 items
   const chunks = new ArrayChunk(delDocs);
   chunks.forEachChunk(async (ch: any[]) => {
@@ -57,6 +57,7 @@ export async function eventExists(eventId: string, eventsCol = '_events') {
     await batch.commit().catch((e: any) => {
       console.log(e);
     });
+    console.log('Finished deleting ', numDocs, ' events');
   });
   return false;
 }
