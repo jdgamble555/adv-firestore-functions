@@ -130,7 +130,7 @@ export async function fullTextIndex(change: any, context: any, field: string, fk
                                 a.push(v);
                             }
                         }
-                        data['terms'] = type === 'map' ? m : a;
+                        data['_terms'] = type === 'map' ? m : a;
                     }
                     batch.set(searchRef, { ...fkeys, ...data });
                 });
