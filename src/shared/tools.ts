@@ -108,14 +108,23 @@ function getValue(change: functions.Change<functions.firestore.DocumentSnapshot>
  * @param targetRef - reference doc
  * @param fields - relevant fields
  */
-async function getJoinData(targetRef: FirebaseFirestore.DocumentReference, fields: string[]): Promise<any> {
-  const targetSnap = await targetRef.get();
-  const targetData: any = targetSnap.data();
-  const joinData: any = {};
-  fields.forEach((f: any) => {
-    joinData.push(targetData[f]);
-  });
-  return joinData;
+async function getJoinData(
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  targetRef: FirebaseFirestore.DocumentReference,
+  fields: string[],
+): Promise<any> {
+  const createDoc = change.after.exists && !change.before.exists;
+
+  if (createDoc) {
+    const targetSnap = await targetRef.get();
+    const targetData: any = targetSnap.data();
+    const joinData: any = {};
+    fields.forEach((f: any) => {
+      joinData.push(targetData[f]);
+    });
+    return joinData;
+  }
+  return null;
 }
 /**
  * Determine if a field value has been updated
