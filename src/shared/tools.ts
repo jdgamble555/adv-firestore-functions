@@ -113,7 +113,7 @@ async function getJoinData(
   change: functions.Change<functions.firestore.DocumentSnapshot>,
   targetRef: FirebaseFirestore.DocumentReference,
   fields: string[],
-  data: any,
+  data: any = {},
   field: string = '',
   alwaysCreate = false,
 ): Promise<any> {
