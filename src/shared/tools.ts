@@ -156,62 +156,76 @@ function fkChange(change: functions.Change<functions.firestore.DocumentSnapshot>
   }
   return before[fk] !== after[fk];
 }
+/**
+ * Aggregate data
+ * @param change - change functions snapshot
+ * @param context - event context
+ * @param targetRef - document reference to edit
+ * @param queryRef - query reference to aggregate on doc
+ * @param fieldExceptions - the fields not to include
+ * @param aggregateField - the name of the aggregated field
+ * @param data - if adding any other data to the document
+ * @param n - the number of documents to aggregate, default 3
+ * @param alwaysAggregate - skip redundant aggregation, useful if not date sort
+ */
 async function aggregateData(
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
   context: functions.EventContext,
   targetRef: FirebaseFirestore.DocumentReference,
   queryRef: FirebaseFirestore.Query,
-  saveFields: string[],
-  lastActivity: string = '',
-  lastActivityFk: string = '',
+  fieldExceptions: string[],
   aggregateField: string = '',
   data: any = {},
   n: number = 3,
+  alwaysAggregate = false,
 ) {
-  // collection name
-  const colId = context.resource.name.split('/')[5];
+  // simplify event types
+  const updateDoc = change.before.exists && change.after.exists;
+  const deleteDoc = change.before.exists && !change.after.exists;
+  const popDoc = updateDoc || deleteDoc;
+
+  // collection name and doc id
+  const cols = context.resource.name.split('/');
+  const colId = cols[cols.length - 2];
+  const docId = cols[cols.length - 1];
 
   if (!aggregateField) {
     aggregateField = colId + 'Aggregate';
-  }
-  if (!lastActivity) {
-    lastActivity = colId + 'LastActivity';
   }
   data[aggregateField] = [];
 
   // doc references
   const targetSnap = await targetRef.get();
   const querySnap = await queryRef.limit(n).get();
+  const targetData: any = targetSnap.data();
+  const targetDocs: any[] = targetData[aggregateField];
 
-  // last doc data
-  const lastQuery: any = querySnap.docs[querySnap.size - 1].data();
-  const lastTarget: any = targetSnap.data();
-
-  // if not specified, use dates as last activity
-  if (!lastActivityFk) {
-    const checkDate = 'updatedAt';
-    if (lastQuery[checkDate]) {
-      lastActivityFk = checkDate;
-    } else {
-      lastActivityFk = 'createdAt';
+  // check if aggregation is necessary
+  if (popDoc && !alwaysAggregate) {
+    let docExists = false;
+    targetDocs.forEach((doc: any) => {
+      if (doc.id === docId) {
+        docExists = true;
+      }
+    });
+    // don't update aggregation if doc not already in aggregation
+    // or if doc is not being created
+    if (!docExists) {
+      return null;
     }
-  }
-  // if document already has latest data, do nothing
-  if (lastTarget[lastActivity] === lastQuery[lastActivityFk]) {
-    return null;
   }
   // get the latest data, save it
-  querySnap.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot, index: number) => {
+  querySnap.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+    // document data
     const d = doc.data();
-    const a: any = {};
-    saveFields.forEach((field: string) => {
-      a[field] = d[field];
-    });
-    data[aggregateField].push(a);
+    const id = 'id';
+    d[id] = doc.id;
 
-    // if last element
-    if (index === saveFields.length - 1) {
-      data[lastActivity] = d[lastActivityFk];
-    }
+    // don't save the field exceptions
+    fieldExceptions.forEach((field: string) => {
+      delete d[field];
+    });
+    data[aggregateField].push(d);
   });
   console.log('Aggregating ', colId, ' data on ', targetRef.path);
   await targetRef.set(data, { merge: true }).catch((e: any) => {
