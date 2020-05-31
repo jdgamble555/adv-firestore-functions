@@ -107,20 +107,22 @@ function getValue(change: functions.Change<functions.firestore.DocumentSnapshot>
  * returns data to be joined on the doc
  * @param targetRef - reference doc
  * @param fields - relevant fields
+ * @param alwaysCreate - whether or not to create no matter what
  */
 async function getJoinData(
   change: functions.Change<functions.firestore.DocumentSnapshot>,
   targetRef: FirebaseFirestore.DocumentReference,
   fields: string[],
+  alwaysCreate = false,
 ): Promise<any> {
   const createDoc = change.after.exists && !change.before.exists;
 
-  if (createDoc) {
+  if (createDoc || alwaysCreate) {
     const targetSnap = await targetRef.get();
     const targetData: any = targetSnap.data();
     const joinData: any = {};
     fields.forEach((f: any) => {
-      joinData.push(targetData[f]);
+      joinData[f] = targetData[f];
     });
     return joinData;
   }
