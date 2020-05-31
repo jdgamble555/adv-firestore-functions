@@ -5,7 +5,6 @@ try {
 } catch (e) {
   /* empty */
 }
-
 export {
   ArrayChunk,
   getCatArray,
@@ -19,6 +18,7 @@ export {
   getValue,
   fkChange,
   aggregateData,
+  getJoinData,
 };
 /**
  * Return a friendly url for the db
@@ -96,12 +96,26 @@ function arraysEqual(a1: any[], a2: any[]): boolean {
  * @param change
  * @param val
  */
-function getValue(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): string {
+function getValue(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
 
   return after ? after[val] : before[val];
+}
+/**
+ * returns data to be joined on the doc
+ * @param targetRef - reference doc
+ * @param fields - relevant fields
+ */
+async function getJoinData(targetRef: FirebaseFirestore.DocumentReference, fields: string[]): Promise<any> {
+  const targetSnap = await targetRef.get();
+  const targetData: any = targetSnap.data();
+  const joinData: any = {};
+  fields.forEach((f: any) => {
+    joinData.push(targetData[f]);
+  });
+  return joinData;
 }
 /**
  * Determine if a field value has been updated
