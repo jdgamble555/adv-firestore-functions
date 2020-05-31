@@ -43,7 +43,7 @@ export async function fullTextIndex(
   const updateDoc = change.before.exists && change.after.exists;
   const writeDoc = createDoc || updateDoc;
   const popDoc = updateDoc || deleteDoc;
-  const fieldChange = before[field] !== after[field];
+  const fieldChange = JSON.stringify(before[field]) !== JSON.stringify(after[field]);
 
   const { ArrayChunk, fkChange } = require('./tools');
 

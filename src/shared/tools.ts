@@ -203,11 +203,13 @@ async function aggregateData(
   // check if aggregation is necessary
   if (popDoc && !alwaysAggregate) {
     let docExists = false;
-    targetDocs.forEach((doc: any) => {
-      if (doc.id === docId) {
-        docExists = true;
-      }
-    });
+    if (targetDocs) {
+      targetDocs.forEach((doc: any) => {
+        if (doc.id === docId) {
+          docExists = true;
+        }
+      });
+    }
     // don't update aggregation if doc not already in aggregation
     // or if doc is not being created
     if (!docExists) {
