@@ -113,10 +113,16 @@ async function getJoinData(
   change: functions.Change<functions.firestore.DocumentSnapshot>,
   targetRef: FirebaseFirestore.DocumentReference,
   fields: string[],
+  data: any,
+  field: string = '',
   alwaysCreate = false,
 ): Promise<any> {
   const createDoc = change.after.exists && !change.before.exists;
 
+  if (!field) {
+    field = targetRef.path.split('/')[0];
+  }
+  // see if need to create data
   if (createDoc || alwaysCreate) {
     const targetSnap = await targetRef.get();
     const targetData: any = targetSnap.data();
@@ -124,9 +130,9 @@ async function getJoinData(
     fields.forEach((f: any) => {
       joinData[f] = targetData[f];
     });
-    return joinData;
+    data[field] = joinData;
   }
-  return null;
+  return data;
 }
 /**
  * Determine if a field value has been updated
