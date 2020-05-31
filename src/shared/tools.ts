@@ -113,8 +113,8 @@ async function getJoinData(
   change: functions.Change<functions.firestore.DocumentSnapshot>,
   targetRef: FirebaseFirestore.DocumentReference,
   fields: string[],
-  data: any = {},
   field: string = '',
+  data: any = {},
   alwaysCreate = false,
 ): Promise<any> {
   const createDoc = change.after.exists && !change.before.exists;
