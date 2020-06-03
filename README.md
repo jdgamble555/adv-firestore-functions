@@ -137,6 +137,13 @@ This will create a counter every time the collection is changed.
 await colCounter(change, context);
 ```
 
+You can find any collection counter that you index here:
+
+```typescript
+// count = n
+db.doc(`_counters/COLLECTION_NAME`);
+```
+
 **Query counters**
 
 Query counters are very interesting, and will save you a lot of time.  For example, you can count the number of documents a user has, or the number of categories a post has, and save it on the original document.
@@ -153,6 +160,8 @@ const postsQuery = db.collection('posts').where('userDoc', "==", userRef);
 
 await queryCounter(change, context, postsQuery, userRef);
 ```
+
+You would get the counter from your target document. In this case it will automatically create **postsCount** on the **users** document.
 
 **Trigger Functions** and **createdAt** / **updatedAt**
 
@@ -293,7 +302,7 @@ if (createDoc(change)) {
 }
 ```
 
-These are automatically used in the source code, so you don't need them for any of these functions out-of-the-box.
+*Note*: The above check functions are automatically used in the source code, so you don't need them for any of these functions out-of-the-box.
 
 **valueChange** to see if a field has changed:
 
@@ -310,6 +319,29 @@ const category = getValue(change, 'category');
 ```
 
 Last, but not least I have these specific functions for categories. I will explain these in a front-end module eventually, but until then don't worry about them. I am adding the usage case just for completeness.
+
+**Tags**
+
+You may have several types of tags on your collection. In order to index them, use this:
+
+```typescript
+await tagIndex(change, context);
+```
+
+The default field is **tags**, and the default collection to store them in is **_tags**, however you can change this and you can have more than one:
+
+```typescript
+await tagIndex(change, context, 'tags', '_tags');
+```
+
+You could even aggregate these tags on **_tags/_index** if you want to read them at once by creating an **onWrite** on the **_tags** document:
+
+```typescript
+let id = firebase.firestore.FieldPath.documentId();
+const tagsDoc = db.doc(`_tags/_index`);
+const tagsQuery = db.collection('_tags').where(id, '>=', 'a');
+await aggregateData(change, context, tagsDoc, undefined, 'tag_list', 50);
+```
 
 **Category counters**
 
