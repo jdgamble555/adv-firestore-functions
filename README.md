@@ -343,6 +343,31 @@ const tagsQuery = db.collection('_tags').where(id, '>=', 'a');
 await aggregateData(change, context, tagsDoc, undefined, 'tag_list', 50);
 ```
 
+**Bulk Delete**
+
+You can delete documents in bulk using chunking at 100 docs. The input is an array of document references. This bypasses the 600 document limit, but be aware I do not know what happens when that numbers gets high enough.
+
+```typescript
+const querySnap = db.collection('your query');
+const docRefs: any = [];
+querySnap.forEach((q: any) => {
+    docRefs.push(q.ref);
+});
+await bulkDelete(docRefs);
+```
+
+**Bulk Update**
+
+Same for bulk update. The data is an object of whatever values you want to update...
+
+```typescript
+const data: any = {};
+data[somethink] = 'some stuff';
+await bulkUpdate(docRefs, data);
+```
+
+*!!Warning!!* - I would suggest not deleting many documents, or even using foreign keys for more than 2000 or so documents. You would have to update every single one of them if a value changes.  In that case, it is best to just read the foreign document on the front end, even though you would incur more reads.
+
 **Category counters**
 
 This is specific if you want to index categories. I will eventually post code on this to explain it, but usage is like so:
