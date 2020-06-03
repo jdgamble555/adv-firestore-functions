@@ -5,3 +5,5 @@ export * from './shared/tools';
 export * from './shared/uniques';
 export * from './shared/tags';
 export * from './shared/categories';
+export * from './shared/joins';
+export * from './shared/bulk';

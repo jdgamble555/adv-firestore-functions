@@ -13,7 +13,7 @@ const db = admin.firestore();
 export async function eventExists(eventId: string, eventsCol = '_events') {
   // TODO: add date input
 
-  const { ArrayChunk } = require('./tools');
+  const { ArrayChunk } = require('./bulk');
 
   // create event for accurate increment
   const eventRef = db.doc(`${eventsCol}/${eventId}`);

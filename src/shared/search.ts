@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 try {
   admin.initializeApp();
@@ -5,7 +6,6 @@ try {
   /* empty */
 }
 const db = admin.firestore();
-
 /**
  * @param change - functions change interface
  * @param context - event context
@@ -15,8 +15,8 @@ const db = admin.firestore();
  * @param searchCol - name of search collection
  */
 export async function fullTextIndex(
-  change: any,
-  context: any,
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  context: functions.EventContext,
   field: string,
   fk = 'id',
   type = 'id',
@@ -45,14 +45,15 @@ export async function fullTextIndex(
   const popDoc = updateDoc || deleteDoc;
   const fieldChange = JSON.stringify(before[field]) !== JSON.stringify(after[field]);
 
-  const { ArrayChunk, fkChange } = require('./tools');
+  const { fkChange, getValue } = require('./tools');
+  const { ArrayChunk, bulkDelete } = require('./bulk');
 
   // update or delete
   if (popDoc) {
     // if deleting doc, field change, or foreign key change
     if (deleteDoc || fieldChange || fkChange(change, fk)) {
       // get old key to delete
-      const fkValue = before ? before[fk] : after[fk];
+      const fkValue = getValue(change, fk);
 
       // remove old indexes
       const delDocs: any = [];
@@ -61,21 +62,9 @@ export async function fullTextIndex(
         // collect all document references
         delDocs.push(doc.ref);
       });
-      const numDocs = delDocs.length;
-      // chunk index array at 100 items
-      const chunks = new ArrayChunk(delDocs);
-      chunks.forEachChunk(async (ch: any[]) => {
-        const batch = db.batch();
-        // delete the docs in batches
-        ch.forEach((docRef: any) => {
-          batch.delete(docRef);
-        });
-        console.log('Deleting batch of docs on ', field, ' field');
-        await batch.commit().catch((e: any) => {
-          console.log(e);
-        });
-      });
-      console.log('Finished deleting ', numDocs, ' docs on ', field, ' field');
+
+      // delete data
+      await bulkDelete(delDocs, field);
     }
   }
   // create or update
@@ -89,7 +78,7 @@ export async function fullTextIndex(
           fkeys[k] = after ? after[k] : before[k];
         });
       } else {
-        fkeys[fk] = after ? after[fk] : before[fk];
+        fkeys[fk] = getValue(change, fk);
       }
       // new indexes
       let fieldValue = after[field];

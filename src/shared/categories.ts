@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 try {
   admin.initializeApp();
@@ -17,8 +18,8 @@ const db = admin.firestore();
  * @param catCol
  */
 export async function catDocCounter(
-  change: any,
-  context: any,
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  context: functions.EventContext,
   counter: string = '',
   pathField = 'catPath',
   arrayField = 'catArray',
@@ -73,8 +74,8 @@ export async function catDocCounter(
  * @param pathField
  */
 export async function subCatCounter(
-  change: any,
-  context: any,
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  context: functions.EventContext,
   counter: string = '',
   parentField = 'parent',
   pathField = 'catPath',

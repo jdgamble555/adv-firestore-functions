@@ -5,26 +5,36 @@ try {
 } catch (e) {
   /* empty */
 }
-export {
-  ArrayChunk,
-  getCatArray,
-  arraysEqual,
-  findSingleValues,
-  canContinue,
-  getFriendlyURL,
-  isTriggerFunction,
-  valueChange,
-  triggerFunction,
-  getValue,
-  fkChange,
-  aggregateData,
-  getJoinData,
-};
+/**
+ * The check functions for type of change
+ * @param change
+ */
+export function updateDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+  return change.before.exists && change.after.exists;
+}
+export function createDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+  return change.after.exists && !change.before.exists;
+}
+export function deleteDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+  return change.before.exists && !change.after.exists;
+}
+export function writeDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+  // createDoc || updateDoc
+  return change.after.exists;
+}
+export function shiftDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+  // createDoc || deleteDoc
+  return !change.after.exists || !change.before.exists;
+}
+export function popDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+  // updateDoc || deleteDoc;
+  return change.before.exists;
+}
 /**
  * Return a friendly url for the db
  * @param url
  */
-function getFriendlyURL(url: string): string {
+export function getFriendlyURL(url: string): string {
   // create friendly URL
   return url
     .trim()
@@ -39,7 +49,7 @@ function getFriendlyURL(url: string): string {
  * @param after
  * @param before
  */
-function canContinue(after: any, before: any): boolean {
+export function canContinue(after: any, before: any): boolean {
   // if update trigger
   if (before.updatedAt && after.updatedAt) {
     if (after.updatedAt._seconds !== before.updatedAt._seconds) {
@@ -56,18 +66,48 @@ function canContinue(after: any, before: any): boolean {
  * Check for trigger function
  * @param change
  */
-function isTriggerFunction(change: functions.Change<functions.firestore.DocumentSnapshot>, eventId: string) {
+export function isTriggerFunction(change: functions.Change<functions.firestore.DocumentSnapshot>, eventId: string) {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
 
-  const updateDoc = change.before.exists && change.after.exists;
-
-  if (updateDoc && !canContinue(after, before)) {
+  if (updateDoc(change) && !canContinue(after, before)) {
     console.log('Trigger function run: ', eventId);
     return true;
   }
   return false;
+}
+/**
+ * trigger Function to update dates and filtered values
+ * @param change - change event
+ * @param data - data to update
+ * @param updateDates - use createdAt and updatedAt
+ */
+export async function triggerFunction(
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  data: any = {},
+  updateDates = true,
+) {
+  if (updateDates) {
+    if (createDoc(change)) {
+      // createdAt
+      data.createdAt = admin.firestore.FieldValue.serverTimestamp();
+    }
+    if (updateDoc(change)) {
+      // updatedAt
+      data.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    }
+  }
+  if (writeDoc(change)) {
+    // if there is data to update, update
+    if (Object.keys(data).length) {
+      console.log('Running function again to update data:', JSON.stringify(data));
+      await change.after.ref.set(data, { merge: true }).catch((e: any) => {
+        console.log(e);
+      });
+    }
+  }
+  return null;
 }
 /**
  * Gets the unique values from the combined array
@@ -75,7 +115,7 @@ function isTriggerFunction(change: functions.Change<functions.firestore.Document
  * @param a2
  * @return - unique values array
  */
-function findSingleValues(a1: any[], a2: any[]): any[] {
+export function findSingleValues(a1: any[], a2: any[]): any[] {
   return a1.concat(a2).filter((v: any) => {
     if (!a1.includes(v) || !a2.includes(v)) {
       return v;
@@ -88,7 +128,7 @@ function findSingleValues(a1: any[], a2: any[]): any[] {
  * @param a2
  * @return - boolean
  */
-function arraysEqual(a1: any[], a2: any[]): boolean {
+export function arraysEqual(a1: any[], a2: any[]): boolean {
   return JSON.stringify(a1) === JSON.stringify(a2);
 }
 /**
@@ -96,7 +136,7 @@ function arraysEqual(a1: any[], a2: any[]): boolean {
  * @param change
  * @param val
  */
-function getValue(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
+export function getValue(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
@@ -104,42 +144,11 @@ function getValue(change: functions.Change<functions.firestore.DocumentSnapshot>
   return after ? after[val] : before[val];
 }
 /**
- * returns data to be joined on the doc
- * @param targetRef - reference doc
- * @param fields - relevant fields
- * @param alwaysCreate - whether or not to create no matter what
- */
-async function getJoinData(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
-  targetRef: FirebaseFirestore.DocumentReference,
-  fields: string[],
-  field: string = '',
-  data: any = {},
-  alwaysCreate = false,
-): Promise<any> {
-  const createDoc = change.after.exists && !change.before.exists;
-
-  if (!field) {
-    field = targetRef.path.split('/')[0];
-  }
-  // see if need to create data
-  if (createDoc || alwaysCreate) {
-    const targetSnap = await targetRef.get();
-    const targetData: any = targetSnap.data();
-    const joinData: any = {};
-    fields.forEach((f: any) => {
-      joinData[f] = targetData[f];
-    });
-    data[field] = joinData;
-  }
-  return data;
-}
-/**
  * Determine if a field value has been updated
  * @param change
  * @param val
  */
-function valueChange(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
+export function valueChange(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
@@ -153,10 +162,27 @@ function valueChange(change: functions.Change<functions.firestore.DocumentSnapsh
   return true;
 }
 /**
+ * Checks for any updated value in array
+ * @param change - change event
+ * @param arr - array of values to check
+ */
+export function arrayValueChange(
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  arr: string[],
+): boolean {
+  // check each array
+  for (const v of arr) {
+    if (valueChange(change, v)) {
+      return true;
+    }
+  }
+  return false;
+}
+/**
  * Returns the category array
  * @param category
  */
-function getCatArray(category: string): any[] {
+export function getCatArray(category: string): any[] {
   // create catPath and catArray
   const catArray: string[] = [];
   let cat = category;
@@ -172,7 +198,7 @@ function getCatArray(category: string): any[] {
  * @param change
  * @param fk
  */
-function fkChange(change: functions.Change<functions.firestore.DocumentSnapshot>, fk: any) {
+export function fkChange(change: functions.Change<functions.firestore.DocumentSnapshot>, fk: any) {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
@@ -186,138 +212,4 @@ function fkChange(change: functions.Change<functions.firestore.DocumentSnapshot>
     return false;
   }
   return before[fk] !== after[fk];
-}
-/**
- * Aggregate data
- * @param change - change functions snapshot
- * @param context - event context
- * @param targetRef - document reference to edit
- * @param queryRef - query reference to aggregate on doc
- * @param fieldExceptions - the fields not to include
- * @param aggregateField - the name of the aggregated field
- * @param data - if adding any other data to the document
- * @param n - the number of documents to aggregate, default 3
- * @param alwaysAggregate - skip redundant aggregation, useful if not date sort
- */
-async function aggregateData(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
-  context: functions.EventContext,
-  targetRef: FirebaseFirestore.DocumentReference,
-  queryRef: FirebaseFirestore.Query,
-  fieldExceptions: string[],
-  aggregateField: string = '',
-  data: any = {},
-  n: number = 3,
-  alwaysAggregate = false,
-) {
-  // simplify event types
-  const updateDoc = change.before.exists && change.after.exists;
-  const deleteDoc = change.before.exists && !change.after.exists;
-  const popDoc = updateDoc || deleteDoc;
-
-  // collection name and doc id
-  const cols = context.resource.name.split('/');
-  const colId = cols[cols.length - 2];
-  const docId = cols[cols.length - 1];
-
-  if (!aggregateField) {
-    aggregateField = colId + 'Aggregate';
-  }
-  data[aggregateField] = [];
-
-  // doc references
-  const targetSnap = await targetRef.get();
-  const querySnap = await queryRef.limit(n).get();
-  const targetData: any = targetSnap.data();
-  const targetDocs: any[] = targetData[aggregateField];
-
-  // check if aggregation is necessary
-  if (popDoc && !alwaysAggregate) {
-    if (targetDocs) {
-      let docExists = false;
-      targetDocs.forEach((doc: any) => {
-        if (doc.id === docId) {
-          docExists = true;
-        }
-      });
-      // don't update aggregation if doc not already in aggregation
-      // or if doc is not being created
-      if (!docExists) {
-        return null;
-      }
-    }
-  }
-  // get the latest data, save it
-  querySnap.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
-    // document data
-    const d = doc.data();
-    const id = 'id';
-    d[id] = doc.id;
-
-    // don't save the field exceptions
-    fieldExceptions.forEach((field: string) => {
-      delete d[field];
-    });
-    data[aggregateField].push(d);
-  });
-  console.log('Aggregating ', colId, ' data on ', targetRef.path);
-  await targetRef.set(data, { merge: true }).catch((e: any) => {
-    console.log(e);
-  });
-  return null;
-}
-/**
- * trigger Function to update dates and filtered values
- * @param change
- * @param data
- * @param dates
- */
-async function triggerFunction(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
-  data: any = {},
-  dates = true,
-) {
-  // simplify event types
-  const createDoc = change.after.exists && !change.before.exists;
-  const updateDoc = change.before.exists && change.after.exists;
-  const writeDoc = createDoc || updateDoc;
-
-  if (dates) {
-    if (createDoc) {
-      // createdAt
-      data.createdAt = admin.firestore.FieldValue.serverTimestamp();
-    }
-    if (updateDoc) {
-      // updatedAt
-      data.updatedAt = admin.firestore.FieldValue.serverTimestamp();
-    }
-  }
-  if (writeDoc) {
-    if (Object.keys(data).length) {
-      console.log('Running function again to update data:', JSON.stringify(data));
-      await change.after.ref.set(data, { merge: true }).catch((e: any) => {
-        console.log(e);
-      });
-    }
-  }
-  return null;
-}
-/**
- * loop through arrays in chunks
- */
-class ArrayChunk {
-  arr: any[];
-  chunk: number;
-
-  constructor(arr: any[], chunk = 100) {
-    this.arr = arr;
-    this.chunk = chunk;
-  }
-
-  forEachChunk(funct: (ch: any[]) => void) {
-    for (let i = 0, j = this.arr.length; i < j; i += this.chunk) {
-      const tempArray = this.arr.slice(i, i + this.chunk);
-      funct(tempArray);
-    }
-  }
 }

@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 try {
   admin.initializeApp();
@@ -5,9 +6,6 @@ try {
   /* empty */
 }
 const db = admin.firestore();
-
-// unique field functions
-
 /**
  * Creates a unique field index
  * @param colPath - collection / field name
@@ -85,8 +83,8 @@ export async function updateField(
  * @param uniqueCol - name of unique collection
  */
 export async function uniqueField(
-  change: any,
-  context: any,
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  context: functions.EventContext,
   field: string,
   friendly = false,
   newField = '',

@@ -65,7 +65,7 @@ The **type** input defaults to 'id', and is indexed on all options.
 --map - makes the document searchable using a **map** of **_terms** (same as document id)  
 --array - makes the document searchable using an **array** of **_terms** (same as document id)  
 
-```json
+```typescript
 // map
 {
     _terms: {
@@ -185,7 +185,97 @@ There are many options for these as well, see actual code for changing default p
 
 The default counter variable can be changed on all documents. See the code for each function.  You can also change the name of the index collections.  The defaults are *_tags, _search, _uniques, _counters, _categories, _events*.
 
-There are also some helper functions like **valueChange** to see if a field has changed:
+**Join Functions**
+
+There are several join functions for different use to save you money from foreign key reads on the front end.
+
+**Aggregate Data**
+
+Here you can agregate the posts comments on a posts document. You can aggregate any document. The default number of documents added is *3*, but you can change this. You can also add any other fields to the document you want using the *data* field. This will automatically only update when the field has been changed.
+
+This would be called on a *comments* **onWrite** call.
+
+```typescript
+import { aggregateData } from 'adv-firestore-functions';
+
+const postId = context.params.postId;
+const docRef = admin.firestore().collection('posts').doc(postId);
+
+const queryRef = db.collection('comments').orderBy('createdAt', 'desc');
+const exemptFields = ['category'];
+
+await aggregateData(change, context, docRef, queryRef, exemptFields);
+```
+
+To change the number of documents to aggregate (5) and the name of the field:
+
+```typescript
+import { aggregateData } from 'adv-firestore-functions';
+
+aggregateData(change, context, docRef, queryRef, exemptFields, 'recentComments', 5);
+```
+
+**getJoinData**
+
+In order to deal with foreign keys, you first need to add the data when a document is created. This will of course get the latest data.
+
+So, for adding user data to a posts document, for example, you can add it like so on a *posts* **onWrite** call:
+
+```typescript
+import { getValue, getJoinData } from 'adv-firestore-functions';
+
+const joinFields = ['displayName', 'photoURL'];
+const userId = getValue(change, 'userId');
+const userRef = db.collection(`users/${userId}`);
+
+let data = await getJoinData(change, userRef, joinFields, 'user');
+```
+
+**updateJoinData**
+
+You also have to deal with updating the data. This function would need to be called on a *user* **onWrite** call, for example, and will update automatically only when the fields have changed.
+
+```typescript
+import { updateJoinData } from 'adv-firestore-functions';
+
+const queryRef = db.collection('posts').where('userId', '==', context.params.docId)
+const joinFields = ['displayName', 'photoURL'];
+await updateJoinData(change, queryRef, joinFields, 'user');
+```
+
+By default, it does not delete the data.  For example, the user's posts will not be automatically deleted if a user is deleted. You can change this default behavior by adding **true** as the last paramenter of the function.
+
+**Helper Functions**
+
+There are several functions to check and see what kind of function is running:
+
+```typescript
+import { createDoc, updateDoc, deleteDoc } from 'adv-firestore-functions';
+```
+
+and for advanced checking:
+
+```typescript
+import { writeDoc, shiftDoc, popDoc } from 'adv-firestore-functions';
+```
+
+- writeDoc = createDoc || updateDoc  
+- shiftDoc = createDoc || deleteDoc   
+- popDoc = updateDoc || deleteDoc  
+
+Also, remeber to pass in the change variable:
+
+```typescript
+import { createDoc } from 'adv-firestore-functions';
+
+if (createDoc(change)) {
+    // a document is being created, so do something...
+}
+```
+
+These are automatically used in the source code, so you don't need them for any of these functions out-of-the-box.
+
+**valueChange** to see if a field has changed:
 
 ```typescript
 if (valueChange(change, 'category')) {
@@ -193,7 +283,7 @@ if (valueChange(change, 'category')) {
 }
 ```
 
-and **getValue** to get the latest value of a field:
+**getValue** to get the latest value of a field:
 
 ```typescript
 const category = getValue(change, 'category');

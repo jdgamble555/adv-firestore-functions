@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 try {
   admin.initializeApp();
@@ -12,7 +13,12 @@ const db = admin.firestore();
  * @param field - name of tags field in document
  * @param tagCol - name of tag index collection
  */
-export async function tagIndex(change: any, context: any, field = 'tags', tagCol = '_tags') {
+export async function tagIndex(
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  context: functions.EventContext,
+  field = 'tags',
+  tagCol = '_tags',
+) {
   const colId = context.resource.name.split('/')[5];
 
   // simplify event types
