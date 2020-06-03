@@ -37,7 +37,6 @@ export class ArrayChunk {
  */
 export async function bulkUpdate(
   docs: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[],
-  field: string,
   data: any,
 ) {
   // number of docs to delete
@@ -51,12 +50,12 @@ export async function bulkUpdate(
     ch.forEach((docRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>) => {
       batch.set(docRef, data, { merge: true });
     });
-    console.log('Updating batch of docs for ', field, ' field');
+    console.log('Updating batch of docs');
     await batch.commit().catch((e: any) => {
       console.log(e);
     });
   });
-  console.log('Finished updating ', numDocs, ' docs on ', field, ' field');
+  console.log('Finished updating ', numDocs, ' docs');
   return null;
 }
 /**
@@ -64,10 +63,7 @@ export async function bulkUpdate(
  * @param docs - doc references to delete
  * @param field - field to delete
  */
-export async function bulkDelete(
-  docs: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[],
-  field: string,
-) {
+export async function bulkDelete(docs: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[]) {
   // number of docs to delete
   const numDocs = docs.length;
 
@@ -80,11 +76,11 @@ export async function bulkDelete(
     ch.forEach((docRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>) => {
       batch.delete(docRef);
     });
-    console.log('Deleting batch of docs for ', field, ' field');
+    console.log('Deleting batch of docs');
     await batch.commit().catch((e: any) => {
       console.log(e);
     });
   });
-  console.log('Finished deleting ', numDocs, ' docs on ', field, ' field');
+  console.log('Finished deleting ', numDocs, ' docs');
   return null;
 }

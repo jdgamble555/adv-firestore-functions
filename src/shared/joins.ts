@@ -13,12 +13,7 @@ export async function updateJoinData(
   field: string,
   del = false,
 ) {
-  // simplify event types
-  const createDoc = change.after.exists && !change.before.exists;
-  const updateDoc = change.before.exists && change.after.exists;
-  const writeDoc = createDoc || updateDoc;
-
-  const { arrayValueChange } = require('./tools');
+  const { arrayValueChange, writeDoc } = require('./tools');
   const { bulkUpdate, bulkDelete } = require('./bulk');
 
   // only update if necessary
@@ -28,9 +23,9 @@ export async function updateJoinData(
 
   // get array of doc references
   const querySnap = await queryRef.get();
-  const joinDocs: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[] = [];
+  const docRefs: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[] = [];
   querySnap.forEach((q: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>) => {
-    joinDocs.push(q.ref);
+    docRefs.push(q.ref);
   });
 
   if (writeDoc) {
@@ -41,13 +36,17 @@ export async function updateJoinData(
       joinData[f] = after[f];
     });
 
+    const data: any = {};
+    data[field] = joinData;
+
     // update bulk
-    await bulkUpdate(joinDocs, field, joinData);
+    console.log('Update docs on ', field, ' field');
+    await bulkUpdate(docRefs, data);
   } else {
     // only delete if del = true
     if (del) {
       // delete bulk
-      await bulkDelete(joinDocs, field);
+      await bulkDelete(docRefs);
     }
   }
   return null;

@@ -64,7 +64,7 @@ export async function fullTextIndex(
       });
 
       // delete data
-      await bulkDelete(delDocs, field);
+      await bulkDelete(delDocs);
     }
   }
   // create or update
