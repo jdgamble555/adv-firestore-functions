@@ -91,21 +91,23 @@ The **type** input defaults to 'id', and is indexed on all options.
 }
 ```
 
-**Maps** and **Arrays** are useful when you want to do complex searching, depending on what your constraints are. They do require more space on your documents and database size, but do not create any additional documents. Obviously searching is still limited to firestore's limits, but you can now use something similar to **startsWith()**, if it were a real function.
+**Maps** and **Arrays** are useful when you want to do complex searching, depending on what your constraints are. They do require more space on your documents and database size, but do not create any additional documents. Obviously searching is still limited to firestore's limits.
 
 *Front-end:* This will depend on your implementation, but generally, you will use something like the following code:
 
 ```typescript
 let id = firebase.firestore.FieldPath.documentId();
 const col = `_search/COLLECTION_NAME/COLLECTION_FIELD`;
+
 db.collection(col).orderBy(id).startAt(term).endAt(term + '~').limit(5);
 ```
-I will eventually make a front-end package for vanilla js or angular. You can search mulitple fields at the same time by combining the promises or combineLatest, for example, and sorting them on the front end with map. It will automatically index the correct fields and collection names.  Use **term** to search. I would also recommend using a **debounceTime** function with **rxjs** to only search when you quit typing.
+On the front-end you could theoretically combine searches for searching several collections at once, separate queries by commas or spaces, or even group documents by relevance by the number of times the documents with the same foreign key id (your source document) appear. However, I would suggest indexing using **maps** or **arrays** for some more advanced features.
 
-If you are using **map** or **array**, you may have something like this:
+If you are in fact using **map** or **array**, you may have something like this:
 
 ```typescript
 const col = `_search/COLLECTION_NAME/COLLECTION_FIELD`;
+
 db.collection(col).where('_terms.' + term, '==', true); // map
 db.collection(col).where('_terms', 'array-contains', term); // array
 ```
@@ -216,7 +218,7 @@ aggregateData(change, context, docRef, queryRef, exemptFields, 'recentComments',
 
 In order to deal with foreign keys, you first need to add the data when a document is created. This will of course get the latest data.
 
-So, for adding user data to a posts document, for example, you can add it like so on a *posts* **onWrite** call:
+So, for adding user data to a posts document, for example, you can add it like so on an **onWrite** call on a **posts** document:
 
 ```typescript
 import { getValue, getJoinData } from 'adv-firestore-functions';
@@ -230,17 +232,38 @@ await createJoinData(change, userRef, joinFields, 'user');
 
 **updateJoinData**
 
-You also have to deal with updating the data. This function would need to be called on a *user* **onWrite** call, for example, and will update automatically only when the fields have changed.
+You also have to deal with updating the data. For example, this will automatically update user data on a posts document when the user data is changed. This function would need to be called on an **onWrite** call on a **user** document:
 
 ```typescript
 import { updateJoinData } from 'adv-firestore-functions';
 
-const queryRef = db.collection('posts').where('userId', '==', context.params.docId)
+const docId = context.params.docId;
+const queryRef = db.collection('posts').where('userId', '==', docId)
 const joinFields = ['displayName', 'photoURL'];
 await updateJoinData(change, queryRef, joinFields, 'user');
 ```
 
-By default, it does not delete the data.  For example, the user's posts will not be automatically deleted if a user is deleted. You can change this default behavior by adding **true** as the last paramenter of the function.
+Because this is **trigger** function, you need to check for it at the top of your function:
+
+```typescript
+// don't run if repeated function
+if (isTriggerFunction(change, context)) {
+    return null;
+}
+```
+
+**getJoinData**
+
+If you plan on updating the same document that was triggered with different types of information, you may want to just get the join data to prevent multiple writes, and write to the trigger funciton later:
+
+```typescript
+const data = await getJoinData(change, queryRef, joinFields, 'user');
+
+// run trigger
+await triggerFunction(change, data);
+```
+
+By default, **updateJoinData** and **getJoinData** do not delete the data.  For example, the user's posts will not automatically be deleted if a user is deleted. You can change this default behavior by adding **true** as the last paramenter of the function.
 
 **Helper Functions**
 
