@@ -18,11 +18,11 @@ export async function updateJoinData(
   const updateDoc = change.before.exists && change.after.exists;
   const writeDoc = createDoc || updateDoc;
 
-  const { arrayValueChanges } = require('./tools');
+  const { arrayValueChange } = require('./tools');
   const { updateBulk, deleteBulk } = require('./bulk');
 
   // only update if necessary
-  if (!arrayValueChanges(change, fields)) {
+  if (!arrayValueChange(change, fields)) {
     return null;
   }
 
