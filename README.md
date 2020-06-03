@@ -36,7 +36,7 @@ Anytime you use a counter function, or a complicated function like **fullTextInd
 
 ```typescript
 // don't run if repeated function
-if (await eventExists(context.eventId)) {
+if (await eventExists(context)) {
     return null;
 }
 ```
@@ -145,24 +145,21 @@ Query counters are very interesting, and will save you a lot of time.  For examp
 // postsCount on usersDoc
 import { eventExists, queryCounter, getValue } from 'adv-firestore-functions';
 
-const userRef = getValue(change, 'userDoc');
-const postsQuery = db.collection('posts').where('userDoc', "==", userRef);
-await queryCounter(change, context, postsQuery, userRef);
-```
-This assumes you saved the userDoc as a reference, but you could easily create one with the document id:
-```typescript
 const userId = getValue(change, 'userId');
 const userRef = db.doc(`users/${userId}`);
+const postsQuery = db.collection('posts').where('userDoc', "==", userRef);
+
+await queryCounter(change, context, postsQuery, userRef);
 ```
 
-**Trigger Functions**
+**Trigger Functions** and **createdAt** / **updatedAt**
 
 You can change the trigger functions to update the same document with a filtered or new value.  For example, if you have a value that you want to create on a function, and then go back and update it (a friendly title in lowercase).
 
 ```typescript
 // define data
 const data: any = {};
-data.someValue = doSomething();
+data[someValue] = 'some new field value';
 
 // run trigger
 await triggerFunction(change, data);
@@ -176,7 +173,7 @@ However, you need to add **isTriggerFunction** to the top of your code to preven
 
 ```typescript
 // don't run if repeated function
-if (await eventExists(context.eventId) || isTriggerFunction(change, context.eventId)) {
+if (await eventExists(context) || isTriggerFunction(change, context)) {
     return null;
 }
 ```
@@ -191,7 +188,7 @@ There are several join functions for different use to save you money from foreig
 
 **Aggregate Data**
 
-Here you can agregate the posts comments on a posts document. You can aggregate any document. The default number of documents added is *3*, but you can change this. You can also add any other fields to the document you want using the *data* field. This will automatically only update when the field has been changed.
+Here you can agregate data, for example the comments on a posts document. You can aggregate any document. The default number of documents added is *3*, but you can change this. You can also add any other fields to the document you want using the *data* field. This will automatically only update when the field has been changed. This will save you money on reads.
 
 This would be called on a *comments* **onWrite** call.
 
@@ -215,7 +212,7 @@ import { aggregateData } from 'adv-firestore-functions';
 aggregateData(change, context, docRef, queryRef, exemptFields, 'recentComments', 5);
 ```
 
-**getJoinData**
+**createJoinData**
 
 In order to deal with foreign keys, you first need to add the data when a document is created. This will of course get the latest data.
 
@@ -228,7 +225,7 @@ const joinFields = ['displayName', 'photoURL'];
 const userId = getValue(change, 'userId');
 const userRef = db.collection(`users/${userId}`);
 
-let data = await getJoinData(change, userRef, joinFields, 'user');
+await createJoinData(change, userRef, joinFields, 'user');
 ```
 
 **updateJoinData**

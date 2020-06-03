@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 try {
   admin.initializeApp();
@@ -5,13 +6,14 @@ try {
   /* empty */
 }
 const db = admin.firestore();
-
 /**
  * Runs a set function once using events
  * @returns - true if first run
  */
-export async function eventExists(eventId: string, eventsCol = '_events') {
+export async function eventExists(context: functions.EventContext, eventsCol = '_events') {
   // TODO: add date input
+
+  const eventId = context.eventId;
 
   const { ArrayChunk } = require('./bulk');
 

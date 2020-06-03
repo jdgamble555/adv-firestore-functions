@@ -66,10 +66,15 @@ export function canContinue(after: any, before: any): boolean {
  * Check for trigger function
  * @param change
  */
-export function isTriggerFunction(change: functions.Change<functions.firestore.DocumentSnapshot>, eventId: string) {
+export function isTriggerFunction(
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  context: functions.EventContext,
+) {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
+
+  const eventId = context.eventId;
 
   if (updateDoc(change) && !canContinue(after, before)) {
     console.log('Trigger function run: ', eventId);

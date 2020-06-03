@@ -53,6 +53,32 @@ export async function updateJoinData(
   return null;
 }
 /**
+ * Create data to join on document
+ * @param change - change event
+ * @param targetRef - the target document
+ * @param fields - the fields to get from the target document
+ * @param field - the field to store the target document fields
+ * @param data - data object to update
+ * @param alwaysCreate - create even if not necessary
+ */
+export async function createJoinData(
+  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  targetRef: FirebaseFirestore.DocumentReference,
+  fields: string[],
+  field: string = '',
+  data: any = {},
+  alwaysCreate = false,
+): Promise<any> {
+  const newData = await getJoinData(change, targetRef, fields, field, data, alwaysCreate);
+
+  // add data to document
+  const { triggerFunction } = require('./tools');
+  await triggerFunction(change, newData);
+
+  return null;
+}
+
+/**
  * Get data to join on document
  * @param change - change event
  * @param targetRef - the target document
