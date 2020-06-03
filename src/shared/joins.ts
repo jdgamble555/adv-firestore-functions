@@ -19,7 +19,7 @@ export async function updateJoinData(
   const writeDoc = createDoc || updateDoc;
 
   const { arrayValueChange } = require('./tools');
-  const { updateBulk, deleteBulk } = require('./bulk');
+  const { bulkUpdate, bulkDelete } = require('./bulk');
 
   // only update if necessary
   if (!arrayValueChange(change, fields)) {
@@ -42,12 +42,12 @@ export async function updateJoinData(
     });
 
     // update bulk
-    await updateBulk(joinDocs, field, joinData);
+    await bulkUpdate(joinDocs, field, joinData);
   } else {
     // only delete if del = true
     if (del) {
       // delete bulk
-      await deleteBulk(joinDocs, field);
+      await bulkDelete(joinDocs, field);
     }
   }
   return null;
