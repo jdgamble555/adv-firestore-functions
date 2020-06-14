@@ -43,15 +43,14 @@ export async function fullTextIndex(
   const updateDoc = change.before.exists && change.after.exists;
   const writeDoc = createDoc || updateDoc;
   const popDoc = updateDoc || deleteDoc;
-  const fieldChange = JSON.stringify(before[field]) !== JSON.stringify(after[field]);
 
-  const { fkChange, getValue } = require('./tools');
+  const { fkChange, getValue, valueChange } = require('./tools');
   const { ArrayChunk, bulkDelete } = require('./bulk');
 
   // update or delete
   if (popDoc) {
     // if deleting doc, field change, or foreign key change
-    if (deleteDoc || fieldChange || fkChange(change, fk)) {
+    if (deleteDoc || valueChange(field) || fkChange(change, fk)) {
       // get old key to delete
       const fkValue = getValue(change, fk);
 
@@ -70,7 +69,7 @@ export async function fullTextIndex(
   // create or update
   if (writeDoc) {
     // if creating a doc, field change, or foreign key change
-    if (createDoc || fieldChange || fkChange(change, fk)) {
+    if (createDoc || valueChange(field) || fkChange(change, fk)) {
       // add new foreign key field(s)
       const fkeys: any = {};
       if (Array.isArray(fk)) {
