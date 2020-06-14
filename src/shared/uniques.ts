@@ -99,6 +99,7 @@ export async function uniqueField(
 
   // simplify input data
   const before: any = change.before.exists ? change.before.data() : null;
+  const after: any = change.after.exists ? change.after.data() : null;
 
   const delim = '___';
 
@@ -106,7 +107,9 @@ export async function uniqueField(
 
   // if certain newField value
   if (!newField) {
-    newField = getValue(change, field);
+    if (after) {
+      newField = after[field];
+    }
   }
   let oldField = '';
   if (before) {
