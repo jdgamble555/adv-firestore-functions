@@ -35,7 +35,6 @@ export function popDoc(change: functions.Change<functions.firestore.DocumentSnap
  * @param url
  */
 export function getFriendlyURL(url: string): string {
-
   // delimeter to replace '/'
   const delim = '___';
 
@@ -195,7 +194,7 @@ export function valueChange(change: functions.Change<functions.firestore.Documen
 }
 /**
  * Returns the collection name
- * @param context 
+ * @param context
  */
 export function getCollection(context: functions.EventContext) {
   return context.resource.name.split('/')[5];

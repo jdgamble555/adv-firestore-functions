@@ -57,7 +57,7 @@ export async function colCounter(change: any, context: any, countersCol = '_coun
       async (t: any): Promise<any> => {
         // update size
         const colSnap = await t.get(colRef);
-        return t.set(countRef, { count: colSnap.size });
+        return await t.set(countRef, { count: colSnap.size });
       },
     ).catch((e: any) => {
       console.log(e);
@@ -73,6 +73,7 @@ export async function colCounter(change: any, context: any, countersCol = '_coun
  * @param countName - the name of the counter on the counter document
  * @param del - whether or not to delete the document
  * @param n - 1 for create, -1 for delete
+ * @param check - whether or not to check for create or delete doc
  */
 export async function queryCounter(
   change: any,
@@ -82,12 +83,13 @@ export async function queryCounter(
   countName: string = '',
   del = 0,
   n = 0,
+  check = true,
 ) {
   // simplify event types
   const createDoc = change.after.exists && !change.before.exists;
   const deleteDoc = change.before.exists && !change.after.exists;
   const shiftDoc = createDoc || deleteDoc;
-  if (!shiftDoc) {
+  if (!shiftDoc && check) {
     return null;
   }
   // collection name

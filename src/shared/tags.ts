@@ -19,7 +19,6 @@ export async function tagIndex(
   field = 'tags',
   tagCol = '_tags',
 ) {
-
   const { findSingleValues, updateDoc, getValue, getBefore, getAfter, getCollection } = require('./tools');
   const { queryCounter } = require('./counters');
 
@@ -46,8 +45,9 @@ export async function tagIndex(
     const queryRef = db.collection(colId).where(tagCol, 'array-contains', `${_tag}`);
     const tagRef = db.doc(`${tagCol}/${_tag}`);
 
-    // update tag counts on tagsDoc
-    await queryCounter(change, context, queryRef, tagRef, 'count', 1, n);
+    // update tag counts on tagsDo
+    console.log('see if counter for ', _tag);
+    await queryCounter(change, context, queryRef, tagRef, 'count', 1, n, false);
   });
   return null;
 }
