@@ -125,7 +125,7 @@ export async function queryCounter(
       async (t: any): Promise<any> => {
         // update size
         const colSnap = await t.get(queryRef);
-        return t.set(countRef, { [countName]: colSnap.size }, { merge: true });
+        return await t.set(countRef, { [countName]: colSnap.size }, { merge: true });
       },
     ).catch((e: any) => {
       console.log(e);

@@ -194,6 +194,13 @@ export function valueChange(change: functions.Change<functions.firestore.Documen
   return true;
 }
 /**
+ * Returns the collection name
+ * @param context 
+ */
+export function getCollection(context: functions.EventContext) {
+  return context.resource.name.split('/')[5];
+}
+/**
  * Checks for any updated value in array
  * @param change - change event
  * @param arr - array of values to check

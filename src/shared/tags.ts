@@ -19,23 +19,17 @@ export async function tagIndex(
   field = 'tags',
   tagCol = '_tags',
 ) {
-  const colId = context.resource.name.split('/')[5];
 
-  // simplify event types
-  const updateDoc = change.before.exists && change.after.exists;
-
-  // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
-  const before: any = change.before.exists ? change.before.data() : null;
-
-  let tags: any[] = after ? after[field] : before[field];
-
-  const { findSingleValues } = require('./tools');
+  const { findSingleValues, updateDoc, getValue, getBefore, getAfter, getCollection } = require('./tools');
   const { queryCounter } = require('./counters');
 
-  if (updateDoc) {
+  const colId = getCollection(context);
+
+  let tags = getValue(change, field);
+
+  if (updateDoc(change)) {
     // get only changed tags
-    tags = findSingleValues(before[field], after[field]);
+    tags = findSingleValues(getBefore(change, field), getAfter(change, field));
   }
   // go through each changed tag
   tags.forEach(async (tag: string) => {
@@ -46,7 +40,7 @@ export async function tagIndex(
       .replace(/[^\w ]+/g, '');
 
     // delete or add tag
-    const n = after.tags.includes(_tag) ? 1 : -1;
+    const n = getAfter(change, field).includes(_tag) ? 1 : -1;
 
     // queries
     const queryRef = db.collection(colId).where(tagCol, 'array-contains', `${_tag}`);
