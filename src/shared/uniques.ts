@@ -97,20 +97,14 @@ export async function uniqueField(
 
   const uniquePath = colId + '/' + field;
 
-  const delim = '___';
-
   const { getAfter, getBefore, createDoc, updateDoc, deleteDoc, getFriendlyURL } = require('./tools');
 
   // get new and old field values
   if (!newField) {
-      newField = getAfter(change, field);
+    newField = getAfter(change, field);
   }
   let oldField = getBefore(change, field);
 
-  // replace '/' character, since can't save it
-  newField = newField.replace(/\//g, delim);
-  oldField = oldField.replace(/\//g, delim);
-  
   if (friendly) {
     newField = getFriendlyURL(newField);
     oldField = getFriendlyURL(oldField);

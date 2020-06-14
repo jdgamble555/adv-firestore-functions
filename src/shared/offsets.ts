@@ -20,7 +20,6 @@ interface bTreeNode {
 }
 
 class bTree {
-    
   db: FirebaseFirestore.Firestore;
   collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>;
   order: number;
@@ -106,5 +105,4 @@ async function main() {
   let me = 'yousus';
   me = me.replace(/\//g, 't');
   console.log(me);
-
 }

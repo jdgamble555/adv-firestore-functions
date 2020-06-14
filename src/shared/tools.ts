@@ -35,6 +35,13 @@ export function popDoc(change: functions.Change<functions.firestore.DocumentSnap
  * @param url
  */
 export function getFriendlyURL(url: string): string {
+
+  // delimeter to replace '/'
+  const delim = '___';
+
+  // get rid of '/' since can't store as id
+  url = url.replace(/\//g, delim);
+
   // create friendly URL
   return url
     .trim()
@@ -138,23 +145,23 @@ export function arraysEqual(a1: any[], a2: any[]): boolean {
 }
 /**
  * Get the after value or null
- * @param change 
- * @param val 
+ * @param change
+ * @param val
  */
 export function getAfter(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
-// simplify input data
+  // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
-  return after ? after[val] : null;
+  return after ? after[val] : '';
 }
 /**
  * Get the before value or null
  * @param change
- * @param val 
+ * @param val
  */
 export function getBefore(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
   // simplify input data
   const before: any = change.before.exists ? change.before.data() : null;
-  return before ? before[val] : null;
+  return before ? before[val] : '';
 }
 /**
  * Returns the latest value of a field
