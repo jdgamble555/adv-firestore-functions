@@ -45,8 +45,7 @@ export async function tagIndex(
     const queryRef = db.collection(colId).where(tagCol, 'array-contains', `${_tag}`);
     const tagRef = db.doc(`${tagCol}/${_tag}`);
 
-    // update tag counts on tagsDo
-    console.log('see if counter for ', _tag);
+    // update tag counts on tags
     await queryCounter(change, context, queryRef, tagRef, 'count', 1, n, false);
   });
   return null;
