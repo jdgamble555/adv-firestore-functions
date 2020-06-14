@@ -98,28 +98,29 @@ export async function uniqueField(
   const uniquePath = colId + '/' + field;
 
   // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
 
   const delim = '___';
 
+  const { getValue, createDoc, updateDoc, deleteDoc, getFriendlyURL } = require('./tools');
+
   // if certain newField value
   if (!newField) {
-    newField = after[field];
+    newField = getValue(field);
   }
+  let oldField = '';
+  if (before) {
+    oldField = before[field];
+  }
+
   // replace '/' character, since can't save it
   newField = newField.replace(/\//g, delim);
-  let oldField = before[field].replace(/\//g, delim);
-
+  oldField = oldField.replace(/\//g, delim);
+  
   if (friendly) {
-    const { getFriendlyURL } = require('./tools');
     newField = getFriendlyURL(newField);
     oldField = getFriendlyURL(oldField);
   }
-  // simplify event types
-  const createDoc = change.after.exists && !change.before.exists;
-  const updateDoc = change.before.exists && change.after.exists;
-  const deleteDoc = change.before.exists && !change.after.exists;
 
   const fieldChanged = newField !== oldField;
 

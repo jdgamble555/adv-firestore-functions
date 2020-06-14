@@ -20,6 +20,7 @@ interface bTreeNode {
 }
 
 class bTree {
+    
   db: FirebaseFirestore.Firestore;
   collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>;
   order: number;
