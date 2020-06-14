@@ -33,24 +33,13 @@ export async function fullTextIndex(
   // term field for maps and arrays
   const termName = '_terms';
 
-  // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
-  const before: any = change.before.exists ? change.before.data() : null;
-
-  // simplify event types
-  const createDoc = change.after.exists && !change.before.exists;
-  const deleteDoc = change.before.exists && !change.after.exists;
-  const updateDoc = change.before.exists && change.after.exists;
-  const writeDoc = createDoc || updateDoc;
-  const popDoc = updateDoc || deleteDoc;
-
-  const { fkChange, getValue, valueChange } = require('./tools');
+  const { getAfter, popDoc, deleteDoc, writeDoc, createDoc, fkChange, getValue, valueChange } = require('./tools');
   const { ArrayChunk, bulkDelete } = require('./bulk');
 
   // update or delete
-  if (popDoc) {
+  if (popDoc(change)) {
     // if deleting doc, field change, or foreign key change
-    if (deleteDoc || valueChange(field) || fkChange(change, fk)) {
+    if (deleteDoc(change) || valueChange(change, field) || fkChange(change, fk)) {
       // get old key to delete
       const fkValue = getValue(change, fk);
 
@@ -67,20 +56,20 @@ export async function fullTextIndex(
     }
   }
   // create or update
-  if (writeDoc) {
+  if (writeDoc(change)) {
     // if creating a doc, field change, or foreign key change
-    if (createDoc || valueChange(field) || fkChange(change, fk)) {
+    if (createDoc(change) || valueChange(change, field) || fkChange(change, fk)) {
       // add new foreign key field(s)
       const fkeys: any = {};
       if (Array.isArray(fk)) {
         fk.forEach((k: any) => {
-          fkeys[k] = after ? after[k] : before[k];
+          fkeys[k] = getValue(change, k);
         });
       } else {
         fkeys[fk] = getValue(change, fk);
       }
       // new indexes
-      let fieldValue = after[field];
+      let fieldValue = getAfter(change, field);
 
       // if array, turn into string
       if (Array.isArray(fieldValue)) {
