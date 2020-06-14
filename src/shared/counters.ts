@@ -114,7 +114,7 @@ export async function queryCounter(
       return countRef.delete();
     }
     db.runTransaction(
-      async (t: any): Promise<any> => {
+      async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // add event and update size
         return await t.set(countRef, { [countName]: i }, { merge: true });
       },
@@ -124,7 +124,7 @@ export async function queryCounter(
     // otherwise count all docs in the collection and add size
   } else {
     db.runTransaction(
-      async (t: any): Promise<any> => {
+      async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // update size
         const colSnap = await t.get(queryRef);
         return await t.set(countRef, { [countName]: colSnap.size }, { merge: true });

@@ -42,7 +42,7 @@ export async function tagIndex(
     const n = getAfter(change, field).includes(_tag) ? 1 : -1;
 
     // queries
-    const queryRef = db.collection(colId).where(tagCol, 'array-contains', `${_tag}`);
+    const queryRef = db.collection(colId).where(field, 'array-contains', `${_tag}`);
     const tagRef = db.doc(`${tagCol}/${_tag}`);
 
     // update tag counts on tags
