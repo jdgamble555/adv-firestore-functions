@@ -97,24 +97,15 @@ export async function uniqueField(
 
   const uniquePath = colId + '/' + field;
 
-  // simplify input data
-  const before: any = change.before.exists ? change.before.data() : null;
-  const after: any = change.after.exists ? change.after.data() : null;
-
   const delim = '___';
 
-  const { getValue, createDoc, updateDoc, deleteDoc, getFriendlyURL } = require('./tools');
+  const { getAfter, getBefore, createDoc, updateDoc, deleteDoc, getFriendlyURL } = require('./tools');
 
-  // if certain newField value
+  // get new and old field values
   if (!newField) {
-    if (after) {
-      newField = after[field];
-    }
+      newField = getAfter(change, field);
   }
-  let oldField = '';
-  if (before) {
-    oldField = before[field];
-  }
+  let oldField = getBefore(change, field);
 
   // replace '/' character, since can't save it
   newField = newField.replace(/\//g, delim);
@@ -127,13 +118,13 @@ export async function uniqueField(
 
   const fieldChanged = newField !== oldField;
 
-  if (createDoc) {
+  if (createDoc(change)) {
     await createField(uniquePath, newField, fkName, fkVal, uniqueCol);
   }
-  if (deleteDoc) {
+  if (deleteDoc(change)) {
     await deleteField(uniquePath, oldField, uniqueCol);
   }
-  if (updateDoc && fieldChanged) {
+  if (updateDoc(change) && fieldChanged) {
     await updateField(uniquePath, oldField, newField, fkName, fkVal, uniqueCol);
   }
   return null;

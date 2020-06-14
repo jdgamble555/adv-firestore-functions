@@ -97,9 +97,14 @@ class bTree {
 main();
 
 async function main() {
-  const t = new bTree();
+  /*const t = new bTree();
 
   const q = admin.firestore().collection('posts').orderBy('title', 'asc');
 
-  await t.treeInsert('blue', q);
+  await t.treeInsert('blue', q);*/
+
+  let me = 'yousus';
+  me = me.replace(/\//g, 't');
+  console.log(me);
+
 }

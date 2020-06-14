@@ -137,6 +137,26 @@ export function arraysEqual(a1: any[], a2: any[]): boolean {
   return JSON.stringify(a1) === JSON.stringify(a2);
 }
 /**
+ * Get the after value or null
+ * @param change 
+ * @param val 
+ */
+export function getAfter(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
+// simplify input data
+  const after: any = change.after.exists ? change.after.data() : null;
+  return after ? after[val] : null;
+}
+/**
+ * Get the before value or null
+ * @param change
+ * @param val 
+ */
+export function getBefore(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
+  // simplify input data
+  const before: any = change.before.exists ? change.before.data() : null;
+  return before ? before[val] : null;
+}
+/**
  * Returns the latest value of a field
  * @param change
  * @param val
