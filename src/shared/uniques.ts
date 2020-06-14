@@ -106,7 +106,7 @@ export async function uniqueField(
 
   // if certain newField value
   if (!newField) {
-    newField = getValue(field);
+    newField = getValue(change, field);
   }
   let oldField = '';
   if (before) {
