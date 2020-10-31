@@ -336,11 +336,13 @@ await tagIndex(change, context, 'tags', '_tags');
 
 Note: The tags are automatically aggregated into a doc 'tags/_all' to save you money on queries. You can set the limitand the name of the field:
 
+```typescript
   field = 'tags',
   tagCol = '_tags',
   createAllTags = true,
   allTagsName = '_all',
   maxNumTags = 100
+```
 
 **Bulk Delete**
 
