@@ -56,9 +56,9 @@ export async function tagIndex(
 
     if (createAllTags) {
       const { aggregateData } = require('./joins');
-      const tagRef = db.collection(field).doc(allTagsName);
+      const tagRef = db.collection(tagCol).doc(allTagsName);
       // not equal to...
-      const tagQueryRef = db.collection(field)
+      const tagQueryRef = db.collection(tagCol)
         .where(admin.firestore.FieldPath.documentId(), '!=', allTagsName);
       await aggregateData(change, context, tagRef, tagQueryRef, undefined, undefined, maxNumTags);
     }
