@@ -334,14 +334,13 @@ The default field is **tags**, and the default collection to store them in is **
 await tagIndex(change, context, 'tags', '_tags');
 ```
 
-You could even aggregate these tags on **_tags/_index** if you want to read them at once by creating an **onWrite** on the **_tags** document:
+Note: The tags are automatically aggregated into a doc 'tags/_all' to save you money on queries. You can set the limitand the name of the field:
 
-```typescript
-let id = firebase.firestore.FieldPath.documentId();
-const tagsDoc = db.doc(`_tags/_index`);
-const tagsQuery = db.collection('_tags').where(id, '>=', 'a');
-await aggregateData(change, context, tagsDoc, undefined, 'tag_list', 50);
-```
+  field = 'tags',
+  tagCol = '_tags',
+  createAllTags = true,
+  allTagsName = '_all',
+  maxNumTags = 100
 
 **Bulk Delete**
 

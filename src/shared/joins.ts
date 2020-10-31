@@ -130,7 +130,7 @@ export async function aggregateData(
   context: functions.EventContext,
   targetRef: FirebaseFirestore.DocumentReference,
   queryRef: FirebaseFirestore.Query,
-  fieldExceptions: string[],
+  fieldExceptions: string[] = [],
   aggregateField: string = '',
   n: number = 3,
   data: any = {},

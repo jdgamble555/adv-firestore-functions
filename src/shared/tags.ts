@@ -12,12 +12,18 @@ const db = admin.firestore();
  * @param context - event context
  * @param field - name of tags field in document
  * @param tagCol - name of tag index collection
+ * @param createAllTags - boolean - create a doc '_all' containing all tags
+ * @param allTagsName - name of all tags doc, default '_all'
+ * @param maxNumTags - the maximum number of tags to put in a doc, default is 100
  */
 export async function tagIndex(
   change: functions.Change<functions.firestore.DocumentSnapshot>,
   context: functions.EventContext,
   field = 'tags',
   tagCol = '_tags',
+  createAllTags = true,
+  allTagsName = '_all',
+  maxNumTags = 100
 ) {
   const { findSingleValues, updateDoc, getValue, getBefore, getAfter, getCollection } = require('./tools');
   const { queryCounter } = require('./counters');
@@ -47,6 +53,15 @@ export async function tagIndex(
 
     // update tag counts on tags
     await queryCounter(change, context, queryRef, tagRef, 'count', 1, n, false);
+
+    if (createAllTags) {
+      const { aggregateData } = require('./joins');
+      const tagRef = db.collection(field).doc(allTagsName);
+      // not equal to...
+      const tagQueryRef = db.collection(field)
+        .where(admin.firestore.FieldPath.documentId(), '!=', allTagsName);
+      await aggregateData(change, context, tagRef, tagQueryRef, undefined, undefined, maxNumTags);
+    }
   });
   return null;
 }

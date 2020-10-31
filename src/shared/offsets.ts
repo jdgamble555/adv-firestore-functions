@@ -5,13 +5,13 @@
 
 import * as admin from 'firebase-admin';
 
-let serviceAccount = require('./serviceAccountKey.json');
+const serviceAccount = require('./serviceAccountKey.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-interface bTreeNode {
+interface BTreeNode {
   values: string[];
   parent: string;
   left?: string;
@@ -19,90 +19,138 @@ interface bTreeNode {
   size?: number;
 }
 
-class bTree {
+class BTree {
   db: FirebaseFirestore.Firestore;
-  collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>;
+  indexCol: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>;
+  searchCol: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>;
   order: number;
+  query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData>;
 
-  constructor(order = 3) {
+  constructor(
+    searchCol: string,
+    indexCol: string,
+    query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData>,
+    order = 3,
+  ) {
     this.db = admin.firestore();
-    this.collection = this.db.collection('test');
+    this.indexCol = this.db.collection(indexCol);
+    this.searchCol = this.db.collection(searchCol);
     this.order = order;
+    this.query = query;
   }
 
-  async treeInsert(id: string, query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData>) {
+  async treeInsert(id: string, nodeId?: string) {
     try {
-      // set search database
-      const searchDB = 'posts';
-
       // get root
-      let currentNode = await this.collection.where('parent', '==', null).limit(1).get();
+      const currentNode = await this.getRootNode();
 
       // if no root
       if (currentNode.empty) {
         // insert at root
-        const rootNode = { values: [id], size: 1, parent: null, left: null, right: null };
-        this.collection.add(rootNode);
+        const rootNode = { values: [id], size: 1, parent: null, children: [null] };
+        this.indexCol.add(rootNode);
         return;
       }
-      // find before node
-      const beforeId = await this.getBeforeId(searchDB, id, query);
-      const beforeNode = this.getBeforeNode(beforeId);
-      const data = (await beforeNode).data();
-      if (data.values.length < this.order) {
-        // add node
+      // get search node values
+      const beforeId = await this.getBeforeId(id);
+
+      const searchNode = await this.getNode(beforeId);
+      const values = searchNode.data().values;
+
+      // add value to correct place in array
+      values.splice(values.indexOf(beforeId) + 1, 0, id);
+
+      // see if room in node
+      if (values.length < this.order) {
+        // add values to search node
+        const increment = admin.firestore.FieldValue.increment(1);
+        searchNode.ref.set({ values, size: increment }, { merge: true });
+      } else {
+        this.splitNode(values, searchNode);
       }
-
-      // add actual leaf
-      const leaf = { left: beforeId, size: 1 };
-      this.collection.doc(id).set(leaf, { merge: true });
-
-      // update parent leaf
     } catch (e) {
       console.log(e);
     }
   }
 
-  private async getBeforeNode(beforeId: string) {
-    const docRef = await this.collection.where('values', 'array-contains', beforeId).limit(1).get();
+  private async splitNode(
+    values: string[],
+    node: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>,
+  ) {
+    // get values for nodes
+    const midIndex = Math.floor(this.order / 2);
+    const mid = values.slice(midIndex, midIndex + 1);
+    const left = values.slice(0, midIndex);
+    const right = values.slice(midIndex + 1);
+
+    // replace current node with left node
+    const leftNode = { values: left, size: left.length, parent: node.id, children: [null] };
+    await node.ref.set(leftNode);
+
+    // create right node
+    const rightNode = { values: right, size: right.length, parent: node.id, children: [null] };
+    const rightRef = await this.indexCol.add(rightNode);
+
+    // add mid value to parent
+    const parent = node.data().parent;
+
+    if (!parent) {
+      const parentNode = { values: mid, size: mid.length, parent: null, left: node.id, right: rightRef.id };
+      this.indexCol.add(parentNode);
+    } else {
+      this.treeInsert(parent);
+    }
+    return;
+  }
+  /**
+   * Get root node
+   */
+  private async getRootNode() {
+    return await this.indexCol.where('parent', '==', null).limit(1).get();
+  }
+  /**
+   * Returns the node containing the id in the index collection
+   * @param beforeId
+   */
+  private async getNode(id: string) {
+    const docRef = await this.indexCol.where('values', 'array-contains', id).limit(1).get();
     return docRef.docs[0];
   }
-
-  private async getBeforeId(
-    collection: string,
-    id: string,
-    query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData>,
-  ) {
-    const docRef = this.db.collection(collection).doc(id);
-    const beforeDoc = await query.endBefore(docRef).limit(1).get();
-    return beforeDoc.docs[0].id;
-  }
-
-  async search(id?: string) {
-    // get root node
-    try {
-      const rootQ = await this.collection.where('parent', '==', 'root').get();
-      if (rootQ.size > 0) {
-        const root = rootQ.docs[0].id;
-        console.log(root);
-      }
-    } catch (e) {
-      console.log(e);
-    }
-    //for (let v of values) {
+  /**
+   * Returns the doc id of the item before in the search collection
+   * @param id - search id
+   */
+  async getBeforeId(id: string) {
+    const docSnap = await this.searchCol.doc(id).get();
+    const beforeDocs = await this.query.endBefore(docSnap).limitToLast(1).get();
+    return beforeDocs.docs[0].id;
   }
 }
 
 main();
 
 async function main() {
-  /*const t = new bTree();
-
   const q = admin.firestore().collection('posts').orderBy('title', 'asc');
 
-  await t.treeInsert('blue', q);*/
+  const t = new BTree('posts', '_nodes', q);
 
-  let me = 'yousus';
-  me = me.replace(/\//g, 't');
-  console.log(me);
+  await t.treeInsert('pQTWLMVJU7vs0nzTuJWT');
+  await t.treeInsert('Rx78XRAe0u2i5XkLaN24');
+  await t.treeInsert('opkz4gTtZJcfYkEGQ3KB');
+
+  /*const e: string[] = [];
+  const ids = await q.get(); 
+  ids.forEach((r: FirebaseFirestore.QueryDocumentSnapshot) => {
+    e.push(r.id);
+  });
+
+  console.log(JSON.stringify(e));*/
 }
+
+/*
+
+["pQTWLMVJU7vs0nzTuJWT","Rx78XRAe0u2i5XkLaN24","opkz4gTtZJcfYkEGQ3KB","bYuHjNCPkeAGmtbcA1rD",
+"aYQEvBC9Yj9DDBswyby3","lN9RVa6VXIlBSfRMbgjn","xqXJjnMUbxfmnqAAnOwA","MIXQWZW6VQyUr67K2WuM",
+"uT9S8KeKcRSLgV5Ad2lU","ZyxIobf06OFIHxBcpJb4"]
+
+*/

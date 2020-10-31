@@ -5,6 +5,7 @@
     ],
     "rules": {
         "no-console": false,
-        "jsdoc-format": false
+        "jsdoc-format": false,
+        "no-var-requires": false
     }
 }
