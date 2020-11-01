@@ -187,10 +187,11 @@ export async function aggregateData(
     data[aggregateField].push(d);
   });
   console.log('Aggregating ', colId, ' data on ', targetRef.path);
+  
   // create doc if it doesn't exist
   const aggregateDoc = await targetRef.get();
   if (!aggregateDoc.exists) {
-    aggregateDoc.ref.create({ [aggregateField]: [] });
+    await aggregateDoc.ref.create({});
   }
   // add aggregate information
   await targetRef.set(data, { merge: true }).catch((e: any) => {

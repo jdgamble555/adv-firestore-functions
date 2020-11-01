@@ -108,7 +108,7 @@ export async function fullTextIndex(
             }
             data[termName] = type === 'map' ? m : a;
           }
-          batch.set(searchRef, { ...fkeys, ...data });
+          batch.set(searchRef, { ...fkeys, ...data }, { merge: true });
         });
         console.log('Creating batch of docs on ', field, ' field');
         await batch.commit().catch((e: any) => {
