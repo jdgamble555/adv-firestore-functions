@@ -572,6 +572,14 @@ await subCatCounter(change, context);
 
 I will try and update the documention as these functions progress. There are plenty of logging, so check your firebase function logs for problems!
 
+Also, note that you can just pass in 'undefined' if you don't want to change the default value in most of these functions.
+
+Example:
+
+```typescript
+await tagIndex(change, context, 'tags', '_tags', undefined, 'tAggregate');
+```
+
 There is more to come as I simplify my firebase functions!
 See [Fireblog.io][1] for more examples (whenever I finally update it)!
 
