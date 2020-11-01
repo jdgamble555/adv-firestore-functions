@@ -190,7 +190,7 @@ export async function aggregateData(
   // create doc if it doesn't exist
   const aggregateDoc = await targetRef.get();
   if (!aggregateDoc.exists) {
-    aggregateDoc.ref.create({});
+    aggregateDoc.ref.create({ [aggregateField]: [] });
   }
   // add aggregate information
   await targetRef.set(data, { merge: true }).catch((e: any) => {
