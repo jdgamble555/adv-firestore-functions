@@ -93,12 +93,12 @@ The **type** input defaults to 'id', and is indexed on all options.
 
 **Maps** and **Arrays** are useful when you want to do complex searching, depending on what your constraints are. They do require more space on your documents and database size, but do not create any additional documents. Obviously searching is still limited to firestore's limits.
 
-```
+```typescript
 /**
  * @param change - functions change interface
  * @param context - event context
  * @param field - the field to index
- * @param fk - the foreign key field to get
+ * @param fk - the foreign key fields to get
  * @param n - number of word chunks to index at a time
  * @param searchCol - name of search collection
  */
