@@ -154,7 +154,7 @@ export async function aggregateData(
   // doc references
   const targetSnap = await targetRef.get();
   const querySnap = await queryRef.limit(n).get();
-  const targetData: any = targetSnap.data();
+  const targetData: any = targetSnap.exists ? targetSnap.data() : {};
   const targetDocs: any[] = targetData[aggregateField];
 
   // check if aggregation is necessary
@@ -187,11 +187,6 @@ export async function aggregateData(
     data[aggregateField].push(d);
   });
   console.log('Aggregating ', colId, ' data on ', targetRef.path);
-  // create doc if it doesn't exist
-  const aggregateDoc = await targetRef.get();
-  if (!aggregateDoc.exists) {
-    await aggregateDoc.ref.create({ [aggregateField]: [] });
-  }
   // add aggregate information
   await targetRef.set(data, { merge: true }).catch((e: any) => {
     console.log(e);
