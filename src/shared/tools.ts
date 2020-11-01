@@ -70,7 +70,8 @@ export function canContinue(after: any, before: any): boolean {
 }
 /**
  * Check for trigger function
- * @param change
+ * @param change - change ref
+ * @param context - event context
  */
 export function isTriggerFunction(
   change: functions.Change<functions.firestore.DocumentSnapshot>,

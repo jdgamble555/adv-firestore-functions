@@ -9,13 +9,13 @@ const db = admin.firestore();
 
 /**
  * Count number of documents in a category
- * @param change
- * @param context
- * @param counter
- * @param pathField
- * @param arrayField
- * @param field
- * @param catCol
+ * @param change - change ref
+ * @param context - context event
+ * @param counter - counter field name, default colCount
+ * @param pathField - default catPath
+ * @param arrayField - default catArray
+ * @param field - default 'category'
+ * @param catCol - default 'categories'
  */
 export async function catDocCounter(
   change: functions.Change<functions.firestore.DocumentSnapshot>,
@@ -67,11 +67,11 @@ export async function catDocCounter(
 }
 /**
  * Count number of subcategories in a category
- * @param change
- * @param context
- * @param counter
- * @param parentField
- * @param pathField
+ * @param change - change ref
+ * @param context - event context
+ * @param counter - default catCount
+ * @param parentField - parent category field name
+ * @param pathField - default catPath
  */
 export async function subCatCounter(
   change: functions.Change<functions.firestore.DocumentSnapshot>,

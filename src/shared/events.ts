@@ -8,6 +8,8 @@ try {
 const db = admin.firestore();
 /**
  * Runs a set function once using events
+ * @param context - event context
+ * @param eventsCol - defaults to '_events'
  * @returns - true if first run
  */
 export async function eventExists(context: functions.EventContext, eventsCol = '_events') {

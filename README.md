@@ -41,6 +41,15 @@ if (await eventExists(context)) {
 }
 ```
 
+```typescript
+/**
+ * Runs a set function once using events
+ * @param context - event context
+ * @param eventsCol - defaults to '_events'
+ * @returns - true if first run
+ */
+```
+
 So, in order to index the title and the content of your **posts** function, you could have something like this:
 ```typescript
 // index the posts
@@ -94,7 +103,8 @@ The **type** input defaults to 'id', and is indexed on all options.
 **Maps** and **Arrays** are useful when you want to do complex searching, depending on what your constraints are. They do require more space on your documents and database size, but do not create any additional documents. Obviously searching is still limited to firestore's limits.
 
 ```typescript
-/**
+/** 
+ * Full text search
  * @param change - functions change interface
  * @param context - event context
  * @param field - the field to index
@@ -131,6 +141,19 @@ Unique fields is pretty simple, add the unique field function and it will update
 await uniqueField(change, context, 'title');
 ```
 
+```typescript
+/**
+ * Handle all unique instances
+ * @param change - change snapshot
+ * @param context - event context
+ * @param field - feild to index
+ * @param friendly - boolean: save friendly string
+ * @param newField - the value of the field if you want to filter it
+ * @param fkName - name of foreign key field
+ * @param uniqueCol - name of unique collection
+ */
+```
+
 *Front-end:* Again, this will depend, but generally speaking you search like so:
 
 ```typescript
@@ -155,6 +178,14 @@ You can find any collection counter that you index here:
 db.doc(`_counters/COLLECTION_NAME`);
 ```
 
+```typescript
+/**
+ * Runs the counter function
+ * @param change - change ref
+ * @param context - event context
+ */
+```
+
 **Query counters**
 
 Query counters are very interesting, and will save you a lot of time.  For example, you can count the number of documents a user has, or the number of categories a post has, and save it on the original document.
@@ -174,6 +205,19 @@ await queryCounter(change, context, postsQuery, userRef);
 
 You would get the counter from your target document. In this case it will automatically create **postsCount** on the **users** document.
 
+```typescript
+/**
+ * Adds a query counter to a doc
+ * @param change - change ref
+ * @param queryRef - the query ref to count
+ * @param countRef - the counter document ref
+ * @param countName - the name of the counter on the counter document
+ * @param del - whether or not to delete the document
+ * @param n - 1 for create, -1 for delete
+ * @param check - whether or not to check for create or delete doc
+ */
+```
+
 **Trigger Functions** and **createdAt** / **updatedAt**
 
 You can change the trigger functions to update the same document with a filtered or new value.  For example, if you have a value that you want to create on a function, and then go back and update it (a friendly title in lowercase).
@@ -185,6 +229,15 @@ data[someValue] = 'some new field value';
 
 // run trigger
 await triggerFunction(change, data);
+```
+
+```typescript
+/**
+ * trigger Function to update dates and filtered values
+ * @param change - change event
+ * @param data - data to update
+ * @param updateDates - use createdAt and updatedAt
+ */
 ```
 
 This will also automatically update **createdAt** and **updatedAt** dates in your document. This is good if you don't want the user to be able to hack these dates on the front end.  You can turn this off by passing in **false** as the last paramenter.
@@ -203,6 +256,14 @@ if (await eventExists(context) || isTriggerFunction(change, context)) {
 There are many options for these as well, see actual code for changing default parameters.
 
 The default counter variable can be changed on all documents. See the code for each function.  You can also change the name of the index collections.  The defaults are *_tags, _search, _uniques, _counters, _categories, _events*.
+
+```typescript
+/**
+ * Check for trigger function
+ * @param change - change ref
+ * @param context - event context
+ */
+```
 
 **Join Functions**
 
@@ -234,6 +295,21 @@ import { aggregateData } from 'adv-firestore-functions';
 aggregateData(change, context, docRef, queryRef, exemptFields, 'recentComments', 5);
 ```
 
+```typescript
+/**
+ * Aggregate data
+ * @param change - change functions snapshot
+ * @param context - event context
+ * @param targetRef - document reference to edit
+ * @param queryRef - query reference to aggregate on doc
+ * @param fieldExceptions - the fields not to include
+ * @param aggregateField - the name of the aggregated field
+ * @param n - the number of documents to aggregate, default 3
+ * @param data - if adding any other data to the document
+ * @param alwaysAggregate - skip redundant aggregation, useful if not date sort
+ */
+```
+
 **createJoinData**
 
 In order to deal with foreign keys, you first need to add the data when a document is created. This will of course get the latest data.
@@ -250,6 +326,18 @@ const userRef = db.collection(`users/${userId}`);
 await createJoinData(change, userRef, joinFields, 'user');
 ```
 
+```typescript
+/**
+ * Create data to join on document
+ * @param change - change event
+ * @param targetRef - the target document
+ * @param fields - the fields to get from the target document
+ * @param field - the field to store the target document fields
+ * @param data - data object to update
+ * @param alwaysCreate - create even if not necessary
+ */
+```
+
 **updateJoinData**
 
 You also have to deal with updating the data. For example, this will automatically update user data on a posts document when the user data is changed. This function would need to be called on an **onWrite** call on a **user** document:
@@ -261,6 +349,16 @@ const docId = context.params.docId;
 const queryRef = db.collection('posts').where('userId', '==', docId)
 const joinFields = ['displayName', 'photoURL'];
 await updateJoinData(change, queryRef, joinFields, 'user');
+```
+
+```typescript
+/**
+ * Update foreign key join data
+ * @param change - change event
+ * @param queryRef - query for fk docs
+ * @param fields - fields to update
+ * @param field - field to store updated fields
+ */
 ```
 
 Because this is **trigger** function, you need to check for it at the top of your function:
@@ -284,6 +382,18 @@ await triggerFunction(change, data);
 ```
 
 By default, **updateJoinData** and **getJoinData** do not delete the data.  For example, the user's posts will not automatically be deleted if a user is deleted. You can change this default behavior by adding **true** as the last paramenter of the function.
+
+```typescript
+/**
+ * Get data to join on document
+ * @param change - change event
+ * @param targetRef - the target document
+ * @param fields - the fields to get from the target document
+ * @param field - the field to store the target document fields
+ * @param data - data object to update
+ * @param alwaysCreate - create even if not necessary
+ */
+```
 
 **Helper Functions**
 
@@ -323,6 +433,14 @@ if (valueChange(change, 'category')) {
 }
 ```
 
+```typescript
+/**
+ * Determine if a field value has been updated
+ * @param change
+ * @param val
+ */
+```
+
 **getValue** to get the latest value of a field:
 
 ```typescript
@@ -330,6 +448,14 @@ const category = getValue(change, 'category');
 ```
 
 Last, but not least I have these specific functions for categories. I will explain these in a front-end module eventually, but until then don't worry about them. I am adding the usage case just for completeness.
+
+```typescript
+/**
+ * Returns the latest value of a field
+ * @param change
+ * @param val
+ */
+```
 
 **Tags**
 
@@ -371,6 +497,14 @@ querySnap.forEach((q: any) => {
 await bulkDelete(docRefs);
 ```
 
+```typescript
+/**
+ * Bulk delete data
+ * @param docs - doc references to delete
+ * @param field - field to delete
+ */
+```
+
 **Bulk Update**
 
 Same for bulk update. The data is an object of whatever values you want to update...
@@ -383,16 +517,18 @@ await bulkUpdate(docRefs, data);
 
 *!!Warning!!* - I would suggest not deleting many documents, or even using foreign keys for more than 2000 or so documents. You would have to update every single one of them if a value changes.  In that case, it is best to just read the foreign document on the front end, even though you would incur more reads.
 
+```typescript
+/**
+ * bulk update data
+ * @param docs - doc references to update
+ * @param field - field to update
+ * @param data - data to update
+ */
+```
+
 **Category counters**
 
 This is specific if you want to index categories. I will eventually post code on this to explain it, but usage is like so:
-
-On the **categories** collection:
-
-```typescript
-// update all sub category counters
-await subCatCounter(change, context);
-```
 
 On the **posts** collection, or whatever your categories contain:
 
@@ -401,7 +537,38 @@ On the **posts** collection, or whatever your categories contain:
 await catDocCounter(change, context);
 ```
 
-I will try and update the documention as these functions progress. There is plenty of logging, so check your logs for problems!
+```typescript
+/**
+ * Count number of documents in a category
+ * @param change - change ref
+ * @param context - context event
+ * @param counter - counter field name, default colCount
+ * @param pathField - default catPath
+ * @param arrayField - default catArray
+ * @param field - default 'category'
+ * @param catCol - default 'categories'
+ */
+```
+
+On the **categories** collection:
+
+```typescript
+// update all sub category counters
+await subCatCounter(change, context);
+```
+
+```typescript
+/**
+ * Count number of subcategories in a category
+ * @param change - change ref
+ * @param context - event context
+ * @param counter - default catCount
+ * @param parentField - parent category field name
+ * @param pathField - default catPath
+ */
+```
+
+I will try and update the documention as these functions progress. There are plenty of logging, so check your firebase function logs for problems!
 
 There is more to come as I simplify my firebase functions!
 See [Fireblog.io][1] for more examples (whenever I finally update it)!

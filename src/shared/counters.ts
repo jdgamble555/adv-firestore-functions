@@ -8,8 +8,8 @@ const db = admin.firestore();
 
 /**
  * Runs the counter function
- * @param change
- * @param context
+ * @param change - change ref
+ * @param context - event context
  */
 export async function colCounter(change: any, context: any, countersCol = '_counters') {
   // simplify event types
