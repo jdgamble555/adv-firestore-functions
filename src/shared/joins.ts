@@ -154,7 +154,7 @@ export async function aggregateData(
   // doc references
   const targetSnap = await targetRef.get();
   const querySnap = await queryRef.limit(n).get();
-  const targetData: any = targetSnap.exists ? targetSnap.data() : {};
+  const targetData: any = targetSnap.exists ? targetSnap.data() : { aggregateField };
   const targetDocs: any[] = targetData[aggregateField];
 
   // check if aggregation is necessary
