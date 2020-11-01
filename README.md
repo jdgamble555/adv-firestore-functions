@@ -436,8 +436,8 @@ if (valueChange(change, 'category')) {
 ```typescript
 /**
  * Determine if a field value has been updated
- * @param change
- * @param val
+ * @param change - change ref
+ * @param val - field value
  */
 ```
 
@@ -452,8 +452,8 @@ Last, but not least I have these specific functions for categories. I will expla
 ```typescript
 /**
  * Returns the latest value of a field
- * @param change
- * @param val
+ * @param change - change ref
+ * @param val - field value
  */
 ```
 
@@ -471,7 +471,9 @@ The default field is **tags**, and the default collection to store them in is **
 await tagIndex(change, context, 'tags', '_tags');
 ```
 
-Note: The tags are automatically aggregated into a doc 'tags/_all' to save you money on queries. You can set the limitand the name of the field:
+Note: The tags are automatically aggregated into a doc 'tags/_all' to save you money on queries. You can set the limit and the name of the field.
+
+*There is a 10 second delay before the aggregated tag doc (tags/_all) is updated to be sure each tag doc (tags/tag_name) has updated before the query begins.*
 
 ```typescript
 /**
