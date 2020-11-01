@@ -60,7 +60,7 @@ export async function tagIndex(
       // not equal to...
       const tagQueryRef = db.collection(tagCol)
         .where(admin.firestore.FieldPath.documentId(), '!=', allTagsName);
-      await aggregateData(change, context, tagRef, tagQueryRef, undefined, undefined, maxNumTags, undefined, true);
+      await aggregateData(change, context, tagRef, tagQueryRef, undefined, 'tagsAggregate', maxNumTags, undefined, true);
     }
   });
   return null;
