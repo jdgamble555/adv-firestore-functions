@@ -337,11 +337,14 @@ await tagIndex(change, context, 'tags', '_tags');
 Note: The tags are automatically aggregated into a doc 'tags/_all' to save you money on queries. You can set the limitand the name of the field:
 
 ```typescript
-  field = 'tags',
-  tagCol = '_tags',
-  createAllTags = true,
-  allTagsName = '_all',
-  maxNumTags = 100
+ * @param change - functions
+ * @param context - event context
+ * @param field - name of tags field in document
+ * @param tagCol - name of tag index collection
+ * @param createAllTags - boolean - create a doc '_all' containing all tags
+ * @param aggregateField - the name of the field to aggregate, default tagAggregate
+ * @param allTagsName - name of all tags doc, default '_all'
+ * @param maxNumTags - the maximum number of tags to put in a doc, default is 100
 ```
 
 **Bulk Delete**
