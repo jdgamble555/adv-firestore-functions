@@ -47,7 +47,7 @@ export async function fullTextIndex(
       const delDocs: any = [];
 
       // see if search for id field
-      const sfk = fk === 'id' ? admin.firestore.FieldPath.documentId() : fk;
+      const sfk = (fk === 'id') ? admin.firestore.FieldPath.documentId() : fk;
 
       const searchSnap = await db.collection(`${searchCol}/${colId}/${field}`).where(sfk, '==', fkValue).get();
       searchSnap.forEach((doc: any) => {

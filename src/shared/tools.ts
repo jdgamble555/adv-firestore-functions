@@ -151,6 +151,9 @@ export function arraysEqual(a1: any[], a2: any[]): boolean {
 export function getAfter(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
+  if (val === 'id') {
+    return after ? change.after.id :'';
+  }
   return after ? after[val] : '';
 }
 /**
@@ -161,6 +164,9 @@ export function getAfter(change: functions.Change<functions.firestore.DocumentSn
 export function getBefore(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
   // simplify input data
   const before: any = change.before.exists ? change.before.data() : null;
+  if (val === 'id') {
+    return before ? change.before.id : '';
+  }
   return before ? before[val] : '';
 }
 /**
@@ -173,6 +179,9 @@ export function getValue(change: functions.Change<functions.firestore.DocumentSn
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
 
+  if (val === 'id') {
+    return after ? change.after.id : change.before.id;
+  }
   return after ? after[val] : before[val];
 }
 /**
