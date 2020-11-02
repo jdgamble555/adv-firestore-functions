@@ -45,7 +45,11 @@ export async function fullTextIndex(
 
       // remove old indexes
       const delDocs: any = [];
-      const searchSnap = await db.collection(`${searchCol}/${colId}/${field}`).where(fk, '==', fkValue).get();
+
+      // see if search for id field
+      const sfk = fk === 'id' ? admin.firestore.FieldPath.documentId() : fk;
+
+      const searchSnap = await db.collection(`${searchCol}/${colId}/${field}`).where(sfk, '==', fkValue).get();
       searchSnap.forEach((doc: any) => {
         // collect all document references
         delDocs.push(doc.ref);
@@ -108,7 +112,7 @@ export async function fullTextIndex(
             }
             data[termName] = type === 'map' ? m : a;
           }
-          batch.set(searchRef, { ...fkeys, data }, { merge: true });
+          batch.set(searchRef, { ...fkeys, ...data }, { merge: true });
         });
         console.log('Creating batch of docs on ', field, ' field');
         await batch.commit().catch((e: any) => {
