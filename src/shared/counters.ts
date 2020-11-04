@@ -47,23 +47,23 @@ export async function colCounter(
     const n = createDoc ? 1 : -1;
     const i = admin.firestore.FieldValue.increment(n);
 
-    return db.runTransaction(
+    return await db.runTransaction(
       async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // add event and update size
         return t.update(countRef, { count: i });
-      },
+      }
     ).catch((e: any) => {
       console.log(e);
     });
     // otherwise count all docs in the collection and add size
   } else {
     const colRef = db.collection(change.after.ref.parent.path);
-    return db.runTransaction(
+    return await db.runTransaction(
       async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // update size
         const colSnap = await t.get(colRef);
         return t.set(countRef, { count: colSnap.size });
-      },
+      }
     ).catch((e: any) => {
       console.log(e);
     });
@@ -118,22 +118,22 @@ export async function queryCounter(
     if (countSnap.get(countName) === 1 && n === -1 && del === 1) {
       return countRef.delete();
     }
-    return db.runTransaction(
+    return await db.runTransaction(
       async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // add event and update size
         return t.set(countRef, { [countName]: i }, { merge: true });
-      },
+      }
     ).catch((e: any) => {
       console.log(e);
     });
     // otherwise count all docs in the collection and add size
   } else {
-    return db.runTransaction(
+    return await db.runTransaction(
       async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // update size
         const colSnap = await t.get(queryRef);
         return t.set(countRef, { [countName]: colSnap.size }, { merge: true });
-      },
+      }
     ).catch((e: any) => {
       console.log(e);
     });
