@@ -10,8 +10,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json",
     "pub": "npm publish --access public",
-    "off": "tsc src/shared/offsets.ts && node src/shared/offsets.js",
-    "git": "git add . && git commit -m "
+    "off": "tsc src/shared/offsets.ts && node src/shared/offsets.js"
   },
   "files": [
     "lib/**/*"
