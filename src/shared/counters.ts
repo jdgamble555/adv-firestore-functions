@@ -73,6 +73,7 @@ export async function colCounter(
 /**
  * Adds a counter to a doc
  * @param change - change ref
+ * @param context - event context
  * @param queryRef - the query ref to count
  * @param countRef - the counter document ref
  * @param countName - the name of the counter on the counter document

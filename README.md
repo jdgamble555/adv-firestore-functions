@@ -207,8 +207,9 @@ You would get the counter from your target document. In this case it will automa
 
 ```typescript
 /**
- * Adds a query counter to a doc
+ * Adds a counter to a doc
  * @param change - change ref
+ * @param context - event context
  * @param queryRef - the query ref to count
  * @param countRef - the counter document ref
  * @param countName - the name of the counter on the counter document

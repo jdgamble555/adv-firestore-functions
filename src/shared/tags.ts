@@ -38,8 +38,9 @@ export async function tagIndex(
     // get only changed tags
     tags = findSingleValues(getBefore(change, field), getAfter(change, field));
   }
+
   // go through each changed tag
-  tags.forEach(async (tag: string) => {
+  for (const tag of tags) {
     // restrict tag string
     const _tag = tag
       .toLowerCase()
@@ -55,20 +56,16 @@ export async function tagIndex(
 
     // update tag counts on tags
     await queryCounter(change, context, queryRef, tagRef, 'count', 1, n, false);
-  });
+  }
 
-  // wait 10 secs to assure other tags are updated
-  // TODO - find a way to handle events here instead of timer...
-  /*const delay = async (ms: number) => new Promise(res => setTimeout(res, ms));
-  await delay(10000);*/
-
+  // update tag aggregation
   if (createAllTags) {
     if (!aggregateField) {
       aggregateField = tagCol + 'Aggregate';
     }
     const { aggregateData } = require('./joins');
     const tagRef = db.collection(tagCol).doc(allTagsName);
-    // not equal to...
+    // get all tags except aggregation tag
     const tagQueryRef = db.collection(tagCol)
       .where(admin.firestore.FieldPath.documentId(), '!=', allTagsName);
     await aggregateData(change, context, tagRef, tagQueryRef, undefined, aggregateField, maxNumTags, undefined, true);
