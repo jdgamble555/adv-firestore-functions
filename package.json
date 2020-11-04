@@ -1,6 +1,6 @@
 {
   "name": "adv-firestore-functions",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "description": "Advanced Firestore Functions tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -10,7 +10,8 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json",
     "pub": "npm publish --access public",
-    "off": "tsc src/shared/offsets.ts && node src/shared/offsets.js"
+    "off": "tsc src/shared/offsets.ts && node src/shared/offsets.js",
+    "git": "git add . && git commit -m "
   },
   "files": [
     "lib/**/*"

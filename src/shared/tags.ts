@@ -59,8 +59,8 @@ export async function tagIndex(
 
   // wait 10 secs to assure other tags are updated
   // TODO - find a way to handle events here instead of timer...
-  const delay = async (ms: number) => new Promise(res => setTimeout(res, ms));
-  await delay(10000);
+  /*const delay = async (ms: number) => new Promise(res => setTimeout(res, ms));
+  await delay(10000);*/
 
   if (createAllTags) {
     if (!aggregateField) {
