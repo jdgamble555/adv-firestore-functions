@@ -47,7 +47,7 @@ export async function colCounter(
     const n = createDoc ? 1 : -1;
     const i = admin.firestore.FieldValue.increment(n);
 
-    return await db.runTransaction(
+    return db.runTransaction(
       async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // add event and update size
         return t.update(countRef, { count: i });
@@ -58,7 +58,7 @@ export async function colCounter(
     // otherwise count all docs in the collection and add size
   } else {
     const colRef = db.collection(change.after.ref.parent.path);
-    return await db.runTransaction(
+    return db.runTransaction(
       async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // update size
         const colSnap = await t.get(colRef);
@@ -118,7 +118,7 @@ export async function queryCounter(
     if (countSnap.get(countName) === 1 && n === -1 && del === 1) {
       return countRef.delete();
     }
-    return await db.runTransaction(
+    return db.runTransaction(
       async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // add event and update size
         return t.set(countRef, { [countName]: i }, { merge: true });
@@ -128,7 +128,7 @@ export async function queryCounter(
     });
     // otherwise count all docs in the collection and add size
   } else {
-    return await db.runTransaction(
+    return db.runTransaction(
       async (t: FirebaseFirestore.Transaction): Promise<any> => {
         // update size
         const colSnap = await t.get(queryRef);
