@@ -39,6 +39,8 @@ export async function tagIndex(
     tags = findSingleValues(getBefore(change, field), getAfter(change, field));
   }
 
+  const queries: Promise<FirebaseFirestore.WriteResult | null>[] = [];
+
   // go through each changed tag
   for (const tag of tags) {
     // restrict tag string
@@ -55,8 +57,10 @@ export async function tagIndex(
     const tagRef = db.doc(`${tagCol}/${_tag}`);
 
     // update tag counts on tags
-    await queryCounter(change, context, queryRef, tagRef, 'count', 1, n, false);
+    queries.push(queryCounter(change, context, queryRef, tagRef, 'count', 1, n, false));
   }
+
+  await Promise.all(queries);
 
   // update tag aggregation
   if (createAllTags) {
