@@ -7,10 +7,12 @@ try {
 }
 const db = admin.firestore();
 /**
+ * Full Text Search
  * @param change - functions change interface
  * @param context - event context
  * @param field - the field to index
  * @param fk - the foreign key fields to get
+ * @param type - { id, may, array } - defaults to id
  * @param n - number of word chunks to index at a time
  * @param searchCol - name of search collection
  */
