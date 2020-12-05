@@ -12,7 +12,7 @@ const db = admin.firestore();
  * @param context - event context
  * @param field - the field to index
  * @param fk - the foreign key fields to get
- * @param type - { id, may, array } - defaults to id
+ * @param type - { id, map, array } - defaults to id
  * @param n - number of word chunks to index at a time
  * @param searchCol - name of search collection
  */
@@ -139,10 +139,12 @@ function createIndex(html: any, n: number) {
   }
   // create document after text stripped from html
   function createDocs(text: any) {
+    const XRegExp = require('xregexp');
     const finalArray: any = [];
     const wordArray = text
       .toLowerCase()
-      .replace(/[^a-zA-Z0-9]+/g, ' ')
+      // fix only english problem, get unicode for any language
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
       .replace(/ +/g, ' ')
       .split(' ');
     do {

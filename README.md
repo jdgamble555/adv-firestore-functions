@@ -109,7 +109,7 @@ The **type** input defaults to 'id', and is indexed on all options.
  * @param context - event context
  * @param field - the field to index
  * @param fk - the foreign key fields to get
- * @param type - { id, may, array } - defaults to id
+ * @param type - { id, map, array } - defaults to id
  * @param n - number of word chunks to index at a time
  * @param searchCol - name of search collection
  */
