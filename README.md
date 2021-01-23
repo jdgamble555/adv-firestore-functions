@@ -187,6 +187,39 @@ db.doc(`_counters/COLLECTION_NAME`);
  */
 ```
 
+**Condition counters**
+
+This will allow you to count changes in a condition. 
+
+Let's say you want to count **isNice** being **true** on a **posts** doc.
+
+You would run this in the **onWrite** function of a **posts** doc.
+
+```typescript
+await conditionCounter(change, context, 'isNice', '==', true);
+```
+
+This will count automatically update the **isNiceCount**, or "isNice == true" on the "_counters/posts" doc.
+
+Possible where operators [here](https://firebase.google.com/docs/reference/node/firebase.firestore#wherefilterop)
+(no support for: array-contains, in, array-contains-any, or not-in)
+Post an issue if you need this [here](https://github.com/jdgamble555/adv-firestore-functions/issues)
+
+```typescript
+/**
+ * Adds a condition counter to a doc
+ * @param change - change ref
+ * @param context - event context
+ * @param field - where field path
+ * @param operator - where operator
+ * @param value - where value
+ * @param countName - counter field name, default ${field}Count
+ * @param countersCol - counter collection name, default _counters
+ * @param del - boolean, delete counter document if 0 ?
+ * @returns
+ */
+```
+
 **Query counters**
 
 Query counters are very interesting, and will save you a lot of time.  For example, you can count the number of documents a user has, or the number of categories a post has, and save it on the original document.
@@ -232,6 +265,8 @@ data[someValue] = 'some new field value';
 // run trigger
 await triggerFunction(change, data);
 ```
+
+ALWAYS HAVE ONLY 1 TRIGGER FUNCTION.  You only need one.
 
 ```typescript
 /**

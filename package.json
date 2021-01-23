@@ -1,6 +1,6 @@
 {
   "name": "adv-firestore-functions",
-  "version": "1.7.5",
+  "version": "1.7.7",
   "description": "Advanced Firestore Functions tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -42,7 +42,6 @@
   "dependencies": {
     "firebase-admin": "^9.4.1",
     "firebase-functions": "^3.11.0",
-    "html-to-text": "^6.0.0",
-    "xregexp": "^4.4.0"
+    "html-to-text": "^6.0.0"
   }
 }
