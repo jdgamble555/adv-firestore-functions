@@ -6,6 +6,7 @@
     "rules": {
         "no-console": false,
         "jsdoc-format": false,
-        "no-var-requires": false
+        "no-var-requires": false,
+        "no-eval": false
     }
 }

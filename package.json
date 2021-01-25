@@ -1,6 +1,6 @@
 {
   "name": "adv-firestore-functions",
-  "version": "1.7.7",
+  "version": "1.7.8",
   "description": "Advanced Firestore Functions tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

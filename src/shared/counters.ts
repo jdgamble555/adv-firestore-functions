@@ -170,9 +170,14 @@ export async function conditionCounter(
   del = false,
 ) {
   // simplify event types
-  const { valueChange, getValue } = require('./tools');
+  const { valueChange, getValue, createDoc, deleteDoc } = require('./tools');
 
-  if (!valueChange(change, field)) {
+  // get current field value
+  const currentValue = getValue(change, field);
+  const exp = eval("'" + currentValue + "'" + ' ' + operator + ' ' + "'" + value + "'");
+
+  // if no valueChange or false new doc or false delete doc
+  if (!valueChange(change, field) || (createDoc && !exp) || (deleteDoc && !exp)) {
     return null;
   }
 
@@ -180,17 +185,14 @@ export async function conditionCounter(
   const colId = context.resource.name.split('/')[5];
   const countDoc = `${countersCol}/${colId}`;
 
+  if (!countName) {
+    countName = field + 'Count';
+  }
+
   // collection references
   const countRef = db.doc(countDoc);
   const countSnap = await countRef.get();
 
-  // get current field value
-  const currentValue = getValue(change, field);
-  const exp = eval("\'" + currentValue + "\'" + ' ' + operator + ' ' + "\'" + value + "\'");
-
-  if (!countName) {
-    countName = field + 'Count';
-  }
   console.log('Updating ', countName, ' counter on ', countRef.path);
 
   // increment size if field exists
