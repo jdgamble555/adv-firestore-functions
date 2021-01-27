@@ -177,7 +177,7 @@ export async function conditionCounter(
   const exp = !!eval("'" + currentValue + "'" + ' ' + operator + ' ' + "'" + value + "'");
 
   // if no valueChange or false new doc or false delete doc
-  if (!valueChange(change, field) || (createDoc && !exp) || (deleteDoc && !exp)) {
+  if (!valueChange(change, field) || (createDoc(change) && !exp) || (deleteDoc(change) && !exp)) {
     return null;
   }
 
@@ -185,31 +185,29 @@ export async function conditionCounter(
   const colId = context.resource.name.split('/')[5];
   const countDoc = `${countersCol}/${colId}`;
 
-  if (!countName) {
-    countName = field + 'Count';
-  }
+  const _countName = countName ? countName : field + 'Count';
 
   // collection references
   const countRef = db.doc(countDoc);
   const countSnap = await countRef.get();
 
-  console.log('Updating ', countName, ' counter on ', countRef.path);
+  console.log('Updating ', _countName, ' counter on ', countRef.path);
 
   // increment size if field exists
-  if (countSnap.get(countName)) {
+  if (countSnap.get(_countName)) {
     // createDoc or deleteDoc
     const _n = exp ? 1 : -1;
     const i = admin.firestore.FieldValue.increment(_n);
 
     // delete counter document if necessary
-    if (countSnap.get(countName) === 1 && _n === -1 && del === true) {
+    if (countSnap.get(_countName) === 1 && _n === -1 && del === true) {
       return countRef.delete();
     }
     return db
       .runTransaction(
         async (t: FirebaseFirestore.Transaction): Promise<any> => {
           // add event and update size
-          return t.set(countRef, { [countName]: i }, { merge: true });
+          return t.set(countRef, { [_countName]: i }, { merge: true });
         },
       )
       .catch((e: any) => {
@@ -223,7 +221,7 @@ export async function conditionCounter(
           // update size
           const queryRef = db.collection(colId).where(field, operator, value);
           const colSnap = await t.get(queryRef);
-          return t.set(countRef, { [countName]: colSnap.size }, { merge: true });
+          return t.set(countRef, { [_countName]: colSnap.size }, { merge: true });
         },
       )
       .catch((e: any) => {
