@@ -478,6 +478,40 @@ if (valueChange(change, 'category')) {
  */
 ```
 
+**valueCreate** to see if a field has been created
+
+```typescript
+if (valueCreate(change, 'category')) {
+// do something
+}
+```
+
+```typescript
+/**
+ * Determine if a field has been created
+ * @param change 
+ * @param val - field
+ * @returns
+ */
+```
+
+**valueDelete** to see if a field has been deleted
+
+```typescript
+if (valueDelete(change, 'category')) {
+// do something
+}
+```
+
+```typescript
+/**
+ * Determine if a field has been deleted
+ * @param change 
+ * @param val - field
+ * @returns
+ */
+```
+
 **getValue** to get the latest value of a field:
 
 ```typescript

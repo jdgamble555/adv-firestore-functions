@@ -185,6 +185,38 @@ export function getValue(change: functions.Change<functions.firestore.DocumentSn
   return after ? after[val] : before[val];
 }
 /**
+ * Determine if a field has been created
+ * @param change 
+ * @param val - field
+ * @returns
+ */
+export function valueCreate(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
+
+  const after: any = change.after.exists ? change.after.data() : null;
+  const before: any = change.before.exists ? change.before.data() : null;
+
+  if (before && !before[val] && after && after[val]) {
+    return true;
+  }
+  return false;
+}
+/**
+ * Determine if a field has been deleted
+ * @param change 
+ * @param val - field
+ * @returns
+ */
+export function valueDelete(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
+
+  const after: any = change.after.exists ? change.after.data() : null;
+  const before: any = change.before.exists ? change.before.data() : null;
+
+  if (after && !after[val] && before && before[val]) {
+    return true;
+  }
+  return false;
+}
+/**
  * Determine if a field value has been updated
  * @param change
  * @param val

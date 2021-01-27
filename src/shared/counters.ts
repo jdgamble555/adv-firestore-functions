@@ -170,14 +170,20 @@ export async function conditionCounter(
   del = false,
 ) {
   // simplify event types
-  const { valueChange, getValue, createDoc, deleteDoc } = require('./tools');
+  const { valueChange, valueCreate, valueDelete, getValue, createDoc, deleteDoc } = require('./tools');
 
   // get current field value
   const currentValue = getValue(change, field);
-  const exp = !!eval("'" + currentValue + "'" + ' ' + operator + ' ' + "'" + value + "'");
+  const exp = eval("'" + currentValue + "'" + ' ' + operator + ' ' + "'" + value + "'");
 
-  // if no valueChange or false new doc or false delete doc
-  if (!valueChange(change, field) || (createDoc(change) && !exp) || (deleteDoc(change) && !exp)) {
+  // if no valueChange or false new doc or false delete doc or false new field or false delete field
+  if (
+    !valueChange(change, field) ||
+    (createDoc(change) && !exp) ||
+    (deleteDoc(change) && !exp) ||
+    (valueCreate(change, field) && !exp) ||
+    (valueDelete(change, field) && !exp)
+  ) {
     return null;
   }
 
