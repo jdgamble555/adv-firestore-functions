@@ -176,14 +176,10 @@ export async function conditionCounter(
   const currentValue = getValue(change, field);
   const exp = eval("'" + currentValue + "'" + ' ' + operator + ' ' + "'" + value + "'");
 
+  const fieldChange = createDoc(change) || deleteDoc(change) || valueDelete(change, value) || valueCreate(change, value);
+
   // if no valueChange or false new doc or false delete doc or false new field or false delete field
-  if (
-    !valueChange(change, field) ||
-    (createDoc(change) && !exp) ||
-    (deleteDoc(change) && !exp) ||
-    (valueCreate(change, field) && !exp) ||
-    (valueDelete(change, field) && !exp)
-  ) {
+  if (!valueChange(change, field) || (fieldChange && !exp)) {
     return null;
   }
 

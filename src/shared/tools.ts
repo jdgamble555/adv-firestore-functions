@@ -152,7 +152,7 @@ export function getAfter(change: functions.Change<functions.firestore.DocumentSn
   // simplify input data
   const after: any = change.after.exists ? change.after.data() : null;
   if (val === 'id') {
-    return after ? change.after.id :'';
+    return after ? change.after.id : '';
   }
   return after ? after[val] : '';
 }
@@ -186,32 +186,30 @@ export function getValue(change: functions.Change<functions.firestore.DocumentSn
 }
 /**
  * Determine if a field has been created
- * @param change 
+ * @param change
  * @param val - field
  * @returns
  */
 export function valueCreate(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
-
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
 
-  if (before && !before[val] && after && after[val]) {
+  if (before && before[val] === undefined && after && after[val]) {
     return true;
   }
   return false;
 }
 /**
  * Determine if a field has been deleted
- * @param change 
+ * @param change
  * @param val - field
  * @returns
  */
 export function valueDelete(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
-
   const after: any = change.after.exists ? change.after.data() : null;
   const before: any = change.before.exists ? change.before.data() : null;
 
-  if (after && !after[val] && before && before[val]) {
+  if (after && after[val] === undefined && before && before[val]) {
     return true;
   }
   return false;
@@ -222,14 +220,10 @@ export function valueDelete(change: functions.Change<functions.firestore.Documen
  * @param val
  */
 export function valueChange(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
-  // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
-  const before: any = change.before.exists ? change.before.data() : null;
-
-  if (!before || !after || !before[val] || !after[val]) {
+  if (createDoc(change) || deleteDoc(change) || valueDelete(change, val) || valueCreate(change, val)) {
     return true;
   }
-  if (arraysEqual(before[val], after[val])) {
+  if (arraysEqual(getBefore(change, val), getAfter(change, val))) {
     return false;
   }
   return true;
