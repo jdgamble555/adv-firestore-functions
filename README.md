@@ -512,6 +512,40 @@ if (valueDelete(change, 'category')) {
  */
 ```
 
+**valueBefore** to see if there is a before value
+
+```typescript
+if (valueBefore(change, 'field')) {
+// do something
+}
+```
+
+```typescript
+/**
+ * Determine if there is a before value
+ * @param change 
+ * @param val 
+ * @returns
+ */
+ ```
+
+ **valueAfter** to see if there is an after value
+
+```typescript
+if (valueAfter(change, 'field')) {
+// do something
+}
+```
+
+```typescript
+/**
+ * Determine if there is an after value
+ * @param change 
+ * @param val 
+ * @returns
+ */
+ ```
+
 **getValue** to get the latest value of a field:
 
 ```typescript
