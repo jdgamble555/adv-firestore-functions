@@ -154,7 +154,7 @@ export function getAfter(change: functions.Change<functions.firestore.DocumentSn
   if (val === 'id') {
     return after ? change.after.id : '';
   }
-  return after ? after[val] : '';
+  return valueAfter(change, val) ? after[val] : '';
 }
 /**
  * Get the before value or null
@@ -167,7 +167,7 @@ export function getBefore(change: functions.Change<functions.firestore.DocumentS
   if (val === 'id') {
     return before ? change.before.id : '';
   }
-  return before ? before[val] : '';
+  return valueBefore(change, val) ? before[val] : '';
 }
 /**
  * Returns the latest value of a field
@@ -182,7 +182,7 @@ export function getValue(change: functions.Change<functions.firestore.DocumentSn
   if (val === 'id') {
     return after ? change.after.id : change.before.id;
   }
-  return after ? after[val] : before[val];
+  return valueAfter(change, val) ? after[val] : before[val];
 }
 /**
  * Determine if there is a before value
