@@ -192,13 +192,10 @@ export function getValue(change: functions.Change<functions.firestore.DocumentSn
  */
 export function valueBefore(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
   const before: any = change.before.exists ? change.before.data() : null;
-  if (val === 'id') {
-    if (before && before.id !== 'undefined') {
+  if (before) {
+    if (val === 'id' || val in before) {
       return true;
     }
-  }
-  if (before && before[val] !== 'undefined') {
-    return true;
   }
   return false;
 }
@@ -210,13 +207,10 @@ export function valueBefore(change: functions.Change<functions.firestore.Documen
  */
 export function valueAfter(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
   const after: any = change.after.exists ? change.after.data() : null;
-  if (val === 'id') {
-    if (after && after.id !== 'undefined') {
+  if (after) {
+    if (val === 'id' || val in after) {
       return true;
     }
-  }
-  if (after && after[val] !== 'undefined') {
-    return true;
   }
   return false;
 }
