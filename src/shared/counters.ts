@@ -170,14 +170,19 @@ export async function conditionCounter(
   del = false,
 ) {
   // simplify event types
-  const { valueChange, valueCreate, getValue } = require('./tools');
+  const { valueChange, getBefore, getAfter } = require('./tools');
 
-  // get current field value
-  const currentValue = getValue(change, field);
-  const exp = eval("'" + currentValue + "'" + ' ' + operator + ' ' + "'" + value + "'");
+  // evaluate old and new expressions
+  const trueNew = eval("'" + getAfter(change, field) + "'" + ' ' + operator + ' ' + "'" + value + "'");
+  const trueOld = eval("'" + getBefore(change, field) + "'" + ' ' + operator + ' ' + "'" + value + "'");
 
-  // if no valueChange or false new doc or false delete doc or false new field or false delete field
-  if (!valueChange(change, field) || !exp) {
+  // change to true or change to false
+  const changeToTrue = trueNew && !trueOld;
+  const changeToFalse = trueOld && !trueNew;
+  const changeBool = changeToTrue || changeToFalse;
+
+  // if no valueChange or no change in expression eval
+  if (!valueChange(change, field) || !changeBool) {
     return null;
   }
 
@@ -195,8 +200,8 @@ export async function conditionCounter(
 
   // increment size if field exists
   if (countSnap.get(_countName)) {
-    // valueCreate || valueDelete
-    const _n = valueCreate(change, field) ? 1 : -1;
+    // new true expression or new false expression
+    const _n = changeToTrue ? 1 : -1;
     const i = admin.firestore.FieldValue.increment(_n);
 
     // delete counter document if necessary
