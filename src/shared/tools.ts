@@ -244,7 +244,7 @@ export function valueDelete(change: functions.Change<functions.firestore.Documen
  * @param val
  */
 export function valueChange(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
-  if (createDoc(change) || deleteDoc(change) || valueDelete(change, val) || valueCreate(change, val)) {
+  if (valueDelete(change, val) || valueCreate(change, val)) {
     return true;
   }
   if (arraysEqual(getBefore(change, val), getAfter(change, val))) {

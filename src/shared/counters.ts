@@ -170,16 +170,14 @@ export async function conditionCounter(
   del = false,
 ) {
   // simplify event types
-  const { valueChange, valueCreate, valueDelete, getValue, createDoc, deleteDoc } = require('./tools');
+  const { valueChange, valueCreate, getValue } = require('./tools');
 
   // get current field value
   const currentValue = getValue(change, field);
   const exp = eval("'" + currentValue + "'" + ' ' + operator + ' ' + "'" + value + "'");
 
-  const fieldChange = createDoc(change) || deleteDoc(change) || valueDelete(change, value) || valueCreate(change, value);
-
   // if no valueChange or false new doc or false delete doc or false new field or false delete field
-  if (!valueChange(change, field) || (fieldChange && !exp)) {
+  if (!valueChange(change, field) || !exp) {
     return null;
   }
 
@@ -197,8 +195,8 @@ export async function conditionCounter(
 
   // increment size if field exists
   if (countSnap.get(_countName)) {
-    // createDoc or deleteDoc
-    const _n = exp ? 1 : -1;
+    // valueCreate || valueDelete
+    const _n = valueCreate(change, field) ? 1 : -1;
     const i = admin.firestore.FieldValue.increment(_n);
 
     // delete counter document if necessary
