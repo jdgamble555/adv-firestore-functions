@@ -395,6 +395,7 @@ await updateJoinData(change, queryRef, joinFields, 'user');
  * @param queryRef - query for fk docs
  * @param fields - fields to update
  * @param field - field to store updated fields
+ * @param isMap - see if field dot notation equals map, default true
  */
 ```
 

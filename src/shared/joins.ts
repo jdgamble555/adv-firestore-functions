@@ -5,6 +5,7 @@ import * as functions from 'firebase-functions';
  * @param queryRef - query for fk docs
  * @param fields - fields to update
  * @param field - field to store updated fields
+ * @param isMap - see if field dot notation equals map, default true
  */
 export async function updateJoinData(
   change: functions.Change<functions.firestore.DocumentSnapshot>,
@@ -12,6 +13,7 @@ export async function updateJoinData(
   fields: string[],
   field: string,
   del = false,
+  isMap = true,
 ) {
   const { arrayValueChange, writeDoc } = require('./tools');
   const { bulkUpdate, bulkDelete } = require('./bulk');
@@ -20,7 +22,6 @@ export async function updateJoinData(
   if (!arrayValueChange(change, fields)) {
     return null;
   }
-
   // get array of doc references
   const querySnap = await queryRef.get();
   const docRefs: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[] = [];
@@ -35,10 +36,17 @@ export async function updateJoinData(
     fields.forEach((f: string) => {
       joinData[f] = after[f];
     });
-
+    // get data
     const data: any = {};
-    data[field] = joinData;
-
+    
+    // handle map types...
+    if (isMap && field.includes('.')) {
+      const keys = field.split('.');
+      const last = keys.pop() || '';
+      keys.reduce((o, k) => (o[k] = o[k] || {}), data)[last] = joinData;
+    } else {
+      data[field] = joinData;
+    }
     // update bulk
     console.log('Update docs on ', field, ' field');
     await bulkUpdate(docRefs, data);
