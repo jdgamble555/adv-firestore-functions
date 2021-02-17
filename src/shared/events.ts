@@ -10,12 +10,18 @@ const db = admin.firestore();
  * Runs a set function once using events
  * @param context - event context
  * @param eventsCol - defaults to '_events'
- * @returns - true if first run
+ * @returns - true if not first run
  */
-export async function eventExists(context: functions.EventContext, eventsCol = '_events') {
+export async function eventExists(context: functions.EventContext, eventsCol = '_events'): Promise<boolean> {
   // TODO: add date input
 
   const eventId = context.eventId;
+
+  // only check events once per invocation
+  if ((global as any).AFF_EVENT === eventId) {
+    return false;
+  }
+  (global as any).AFF_EVENT = eventId;
 
   const { ArrayChunk } = require('./bulk');
 

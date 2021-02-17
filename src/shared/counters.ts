@@ -17,6 +17,11 @@ export async function colCounter(
   context: functions.EventContext,
   countersCol = '_counters',
 ) {
+  const { eventExists } = require('./events');
+  // don't run if repeated function
+  if (await eventExists(context)) {
+    return null;
+  }
   // simplify event types
   const createDoc = change.after.exists && !change.before.exists;
   const deleteDoc = change.before.exists && !change.after.exists;
@@ -94,6 +99,11 @@ export async function queryCounter(
   n = 0,
   check = true,
 ) {
+  const { eventExists } = require('./events');
+  // don't run if repeated function
+  if (await eventExists(context)) {
+    return null;
+  }
   // simplify event types
   const createDoc = change.after.exists && !change.before.exists;
   const deleteDoc = change.before.exists && !change.after.exists;
@@ -169,6 +179,11 @@ export async function conditionCounter(
   countersCol = '_counters',
   del = false,
 ) {
+  const { eventExists } = require('./events');
+  // don't run if repeated function
+  if (await eventExists(context)) {
+    return null;
+  }
   // simplify event types
   const { valueChange, getBefore, getAfter } = require('./tools');
 

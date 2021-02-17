@@ -311,3 +311,64 @@ export function fkChange(change: functions.Change<functions.firestore.DocumentSn
   }
   return before[fk] !== after[fk];
 }
+
+export function soundex(s: string) {
+  const a = s.toLowerCase().split("");
+  const f = a.shift() as string;
+  let r = "";
+  const codes = {
+    a: "",
+    e: "",
+    i: "",
+    o: "",
+    u: "",
+    b: 1,
+    f: 1,
+    p: 1,
+    v: 1,
+    c: 2,
+    g: 2,
+    j: 2,
+    k: 2,
+    q: 2,
+    s: 2,
+    x: 2,
+    z: 2,
+    d: 3,
+    t: 3,
+    l: 4,
+    m: 5,
+    n: 5,
+    r: 6,
+  } as any;
+  r =
+    f +
+    a
+      .map((v) => {
+        return codes[v];
+      })
+      .filter((v, i, b) => {
+        return i === 0 ? v !== codes[f] : v !== b[i - 1];
+      })
+      .join("");
+  return (r + "000").slice(0, 4).toUpperCase();
+}
+
+export function generateTrigrams(s: string) {
+  const trigrams: any = [];
+  function* ngrams(a: any, n: number) {
+    const buf: any = [];
+    for (const x of a) {
+      buf.push(x);
+      if (buf.length === n) {
+        yield buf;
+        buf.shift();
+      }
+    }
+  }
+  for (const g of ngrams(s, 3)) {
+    trigrams.push(g.join(''));
+  }
+  // unique only
+  return trigrams.filter((v: any, i: any, a: any) => a.indexOf(v) === i);
+}
