@@ -360,7 +360,7 @@ export async function trigramSearch(
  *   combine - whether or not to combine fields in one collection, default true
  *   combinedCol - name of combined fields collection, default _all
  *   termField - name of terms array, default _term
- *   filterFunct - function to filter, can pass a soundex function
+ *   filterFunc - function to filter, can pass a soundex function
  * }
  */
 export async function relevantIndex(

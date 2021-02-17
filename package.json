@@ -1,6 +1,6 @@
 {
   "name": "adv-firestore-functions",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Advanced Firestore Functions tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -28,7 +28,7 @@
     "search"
   ],
   "author": "Jonathan Gamble",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/jdgamble555/adv-firestore-functions/issues"
   },

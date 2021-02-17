@@ -23,10 +23,23 @@ functions.firestore
 //... code
 }
 ```
-**
-**Relevant Search** - New!
 
-This function will allow you to create a relevant search index. It is as simple as it gets:
+The search functions, however, must be put in a callable function like so:
+
+```typescript
+functions.https.onCall(async (q: any) => {
+
+// 'q' is the data coming in
+
+//... code
+}
+```
+
+# Searching
+
+**Relevant Search Index** - New!
+
+This function will allow you to create a relevant search index.
 
 ```typescript
 await relevantIndex(change, context, {
@@ -34,6 +47,23 @@ await relevantIndex(change, context, {
 });
 ```
 Simply pass the fields you want to index. Events, indexing, deleting... everything is done internally! It only creates one document per document to index. 
+
+By default, all fields are indexed, but you could index them seperately with `combine=true` paramenter.
+
+You can also import your own custom filter function like so:
+
+```typescript
+import { soundex } from 'adv-firestore-functions';
+
+await relevantIndex(change, context, {
+    fields: ['content', 'summary'],
+    filterFunc: soundex
+});
+```
+
+This will filter the data through a soundex [phonetic algorithm](https://en.wikipedia.org/wiki/Phonetic_algorithm). The version included in this package only works with English, but you can use your own function here to work with any language.
+
+Soundex works well when you search for something you don't know how to spell. Trigrams are better for any typos. However, depending on your needs, this is much much faster.
 
 ```typescript
 /**
@@ -44,16 +74,48 @@ Simply pass the fields you want to index. Events, indexing, deleting... everythi
  *   fields - array of fields to index
  *   searchCol - name of search collection, default _search
  *   numWords - number of words to index at a time, default 6
- *   combine - whether or not to combine fields in one collection, default false
+ *   combine - whether or not to combine fields in one collection, default true
  *   allCol - name of all fields collection, default _all
  *   termField - name of terms array, default _term
- *   filterFunct - function to filter, can pass a soundex function
+ *   filterFunc - function to filter, can pass a soundex function
  * }
  */
 ```
-**Trigram Search** - New!
 
-This function will allow you to create a trigram search index.:
+**Relevant Search Callable**
+
+Run this in the callable function:
+
+```typescript
+  return await relevantSearch({
+    query: q.query,
+    col: 'posts',
+  });
+```
+
+You can set the options you want to be called. If you indexed all columns and you are searching all columns, you can use paging by a `startId`.
+
+```typescript
+/**
+ * Relevant search callable function
+ * @param _opts {
+ *   query - query to search
+ *   col - collection to search
+ *   fields - fields to search
+ *   searchCol - name of search collection, default _search
+ *   termField - name of term field to search, default _term
+ *   filterFunc - name of function to filter
+ *   limit - number of search results to limit, default 10
+ *   startId - id field for paging, only works with _all index
+ * }
+ * @returns - will return a sorted array of docs with {id, relevance}
+ *   the higher the relevance, the better match it is...
+ */
+```
+
+**Trigram Search Index** - New!
+
+This function will allow you to create a trigram search index.
 
 ```typescript
 await trigramIndex(change, context, {
@@ -76,10 +138,38 @@ Simply pass the fields you want to index. Events, indexing, deleting... everythi
  * }
  */
 ```
+**Trigram Search Callable**
+
+Run this in the callable function:
+
+```typescript
+  return await trigramSearch({
+    query: q.query,
+    col: 'posts',
+  });
+```
+
+This function can be cumbersome on the backend. Depending on your setup, it may be quicker to translate the promises to observables and keep it on the front end.
+
+```typescript
+/**
+ * Trigram Search callable function
+ * @param _opts {
+ *   query - query to search
+ *   col - collection to search
+ *   fields - fields to search, defaults to _all if indexed
+ *   searchCol - name of search collection, default _search
+ *   termField - name of term field to search, default _term
+ *   limit - number of search results to limit, default 10
+ * }
+ * @retuns - will return a sorted array of docs with {id, relevance}
+ *   the higher the relevance, the better match it is...
+ */
+```
 
 **Full-text search**
 
-**Note:** - This function is depreciated as of version 2.0.0, use relevant search instead!
+*Note:* - This function is depreciated as of version 2.0.0, use relevant search or trigram search instead!
 
 *WARNING!* - This function can create A LOT of documents if you have a big text field. However, it is worth it if you only **write** sporatically.
 
