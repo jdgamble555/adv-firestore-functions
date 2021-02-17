@@ -524,7 +524,7 @@ export async function trigramIndex(
   // create or update
   if (writeDoc(change)) {
 
-    const data: any = {};
+    let data: any = {};
     let m: any = {};
 
     // go through each field to index
@@ -538,10 +538,14 @@ export async function trigramIndex(
         fieldValue = fieldValue.join(' ');
       }
       // generate trigrams
-      const index = generateTrigrams(createIndex(fieldValue, 0, true));
-      for (const gram of index) {
+      const index = createIndex(fieldValue, 0, true);
+      const tg = generateTrigrams(index);
+      for (const gram of tg) {
         m[gram] = true;
       }
+      // save data to doc
+      data[`_${field}`] = index;
+
       // index individual field
       if (!opts.combine) {
         data[opts.termField] = m;
@@ -552,6 +556,7 @@ export async function trigramIndex(
         });
         // clear index history
         m = {};
+        data = {};
       }
     }
     if (opts.combine) {

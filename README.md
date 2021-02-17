@@ -309,6 +309,8 @@ db.doc(`_uniques/COLLECTION_NAME/${title}`);
 ```
 on the document name to see if the 'title', in this case, is a unique value. Just use **snapshot.exists** depending on your front-end code.
 
+# Counters
+
 *Note: The following indexes care created automatically if they do not exist.*
 
 **Collection counters**
@@ -448,6 +450,7 @@ The default counter variable can be changed on all documents. See the code for e
  * @param context - event context
  */
 ```
+# Aggregation
 
 **Join Functions**
 
@@ -557,7 +560,7 @@ if (isTriggerFunction(change, context)) {
 
 **getJoinData**
 
-If you plan on updating the same document that was triggered with different types of information, you may want to just get the join data to prevent multiple writes, and write to the trigger funciton later:
+If you plan on updating the same document that was triggered with different types of information, you may want to just get the join data to prevent multiple writes, and write to the trigger funciton later. This is actually the internal function for **createJoinData**.
 
 ```typescript
 const data = await getJoinData(change, queryRef, joinFields, 'user');
@@ -580,7 +583,7 @@ By default, **updateJoinData** and **getJoinData** do not delete the data.  For 
  */
 ```
 
-**Helper Functions**
+# Helper Functions
 
 There are several functions to check and see what kind of function is running:
 
@@ -834,6 +837,8 @@ Example:
 ```typescript
 await tagIndex(change, context, 'tags', '_tags', undefined, 'tAggregate');
 ```
+
+If you see any errors or have any suggestions, please post an [issue on github](https://github.com/jdgamble555/adv-firestore-functions/issues).
 
 There is more to come as I simplify my firebase functions!
 See [Fireblog.io][1] for more examples (whenever I finally update it)!
