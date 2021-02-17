@@ -323,8 +323,9 @@ export async function trigramSearch(
     // get relevant info from docs
     return q.docs.map((doc: any) => {
       const id = doc.id;
+      const data = doc.data();
       const relevance = q.relevance;
-      return { id, relevance };
+      return { id, relevance, ...data };
     });
   })).filter((r: any) => {
     // filter duplicates
