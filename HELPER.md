@@ -1,5 +1,7 @@
 # Advanced Firestore Functions
 
+[HOME](README.md)
+
 There are several functions to check and see what kind of function is running:
 
 ```typescript

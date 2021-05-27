@@ -1,3 +1,7 @@
+# Advanced Firestore Functions
+
+[HOME](README.md)
+
 **Relevant Search Index** - New!
 
 This function will allow you to create a relevant search index.
