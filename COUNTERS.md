@@ -1,3 +1,5 @@
+# Advanced Firestore Functions
+
 *Note: The following indexes care created automatically if they do not exist.*
 
 **Collection counters**

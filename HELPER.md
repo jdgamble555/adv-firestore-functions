@@ -1,3 +1,5 @@
+# Advanced Firestore Functions
+
 There are several functions to check and see what kind of function is running:
 
 ```typescript
