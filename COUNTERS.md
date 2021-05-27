@@ -1,4 +1,4 @@
-# Advanced Firestore Functions
+# Advanced Firestore Functions: Counters
 
 [HOME](README.md)
 

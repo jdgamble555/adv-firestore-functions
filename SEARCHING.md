@@ -1,4 +1,4 @@
-# Advanced Firestore Functions
+# Advanced Firestore Functions: Searching
 
 [HOME](README.md)
 
