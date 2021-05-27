@@ -35,12 +35,12 @@ functions.https.onCall(async (q: any) => {
 }
 ```
 
-# (Searching)[SEARCHING.md]
-# (Counters)[COUNTERS.md]
+# [Searching](SEARCHING.md)
+# [Counters](COUNTERS.md)
 
-# (Aggregation)[AGGREGATION.md]
+# [Aggregation](AGGREGATION.md)
 
-# (Helper Functions)[HELPER.md]
+# [Helper Functions](HELPER.md)
 
 
 If you see any errors or have any suggestions, please post an [issue on github](https://github.com/jdgamble555/adv-firestore-functions/issues).
