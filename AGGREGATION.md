@@ -2,6 +2,143 @@
 
 [HOME](README.md)
 
+**Array Index**
+
+I created an array index function.  Since arrays are limited in size by the size of the document, I created a way to automatically grow in scale if your arrays get bigger.  It defaults to the sub-collection and saves the id, but you can use any collection and any value in the documents.
+
+This would be called on a *comments* **onWrite** call.
+
+```typescript
+import { arrayIndex } from 'adv-firestore-functions';
+
+functions.firestore
+  .document("users/{userId}/following/{followingId}")
+  .onWrite(async (change: any, context: any) => {
+
+    await arrayIndex(change, context);
+
+  });
+```
+
+  By default, this will create a ```following_index``` collection indexing the follower ids in an array called following containing upto 10,000 documents and the user doc. 
+  It will automatically create new documents after 10,000 (set this number with max), to allow scalable arrays for searching.
+
+  The index doc will look like:
+
+```
+users/{userId}/following_index/{following_index_id} --> {
+
+following: [
+    12ksk3s,
+    h2kskeks,
+    5232212,
+    ...
+],
+user: {
+    displayName: 'John Doe',
+    email: 't@test.com',
+    ...
+},
+createdAt: 'date here',
+updatedAt: 'date here'
+
+}
+```
+
+These documents will be searchable. If you delete a doc, it will delete it in an array. Everything gets auto-updated. 
+
+You can also do a map:
+
+```typescript
+await arrayIndex(change, context, {
+    type: 'map'
+});
+```
+
+Which will produce:
+```
+following: {
+    12k32k: true,
+    zekles: true,
+    ...
+}
+```
+Or for special indexing for map sorting:
+```typescript
+await arrayIndex(change, context, {
+    type: 'map',
+    docSortField: 'createdAt',
+    docSortType: 'value'
+});
+```
+While will produce:
+```
+following: {
+    11sk3sl: 2/5/2021 (date timestamp),
+    72dkels: 2/5/2021 (date timestamp)
+    ...
+},
+users: {
+    displayName: 'John Doe',
+    createdAt: 2/5/2021 (date timestamp)
+}
+```
+The date will be whatever date is on the user doc.  This allows you to sort by user createdAt using:
+```typescript
+db.collectionGroup('following_index')
+.orderBy(`following.${followingID}`)
+```
+Or for multiple where clauses:
+```typescript
+await arrayIndex(change, context, {
+    type: 'map',
+    docSortField: 'createdAt',
+    docSortType: 'id',
+    indexPath: '/'
+});
+```
+Would create:
+```
+following_index/(createdAt date string here)__{following_index_id} --> {
+    following: {
+      11sk3sl: true,
+      72dkels: true
+    ...
+    },
+    users: {
+      displayName: 'John Doe',
+      createdAt: 2/5/2021 (date timestamp)
+    }
+}
+```
+So you could search by:
+```typescript
+db.collection('following_index').where(`following.${followingID}`, '==', true)
+```
+This will automatically sort by the createdAt date, since id fields are auto indexed.
+
+There are many options for every scenario.  If I missed something, let me know.
+
+```typescript
+/**
+ * @param change - change functions snapshot
+ * @param context - event context
+ * @param _opts : {
+ *   fieldToIndex - field to save in array or map, default id
+ *   max - maximum number of items in array / map, default 10,000
+ *   type - array or map, default array
+ *   indexFieldName - name of field to store array, defaults to collection name
+ *   indexColName - name of new index collection, default collection_name__index
+ *   indexPath - path to store new collection, defaults to parent doc
+ *   docToIndex - doc to index with array, defaults to to parent doc
+ *   docFieldsToIndex - fields from parent doc to index, default *
+ *   docFieldName - name of field to store parent doc in, defaults to col name
+ *   docSortField - name of field to sort documents by, default createdAt
+ *   docSortType - sort by id or value (add id sort, or map value sort), default null
+ * }
+ */
+```
+
 **Join Functions**
 
 There are several join functions for different use to save you money from foreign key reads on the front end.
