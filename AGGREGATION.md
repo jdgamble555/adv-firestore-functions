@@ -230,13 +230,13 @@ await updateJoinData(change, queryRef, joinFields, 'user');
  * Update foreign key join data
  * @param change - change event
  * @param queryRef - query for fk docs
- * @param fields - fields to update
+ * @param fields - fields to update, default *
  * @param field - field to store updated fields
  * @param isMap - see if field dot notation equals map, default true
  */
 ```
 
-Because this is **trigger** function, you need to check for it at the top of your function:
+**IMPORTANT!** - If this is **trigger** function, you need to check for it at the top of your function with this code.  This should be ran before any functions.  A trigger function is a Firebase Function that triggers itself. Example, triggering the user doc to update the user doc with the latest date, or aggregated posts, etc...
 
 ```typescript
 // don't run if repeated function
@@ -247,7 +247,7 @@ if (isTriggerFunction(change, context)) {
 
 **getJoinData**
 
-If you plan on updating the same document that was triggered with different types of information, you may want to just get the join data to prevent multiple writes, and write to the trigger funciton later. This is actually the internal function for **createJoinData**.
+If you plan on updating the same document that was triggered with different types of information, you may want to just get the join data to prevent multiple writes, and write to the trigger function later. This is actually the internal function for **createJoinData**.
 
 ```typescript
 const data = await getJoinData(change, queryRef, joinFields, 'user');

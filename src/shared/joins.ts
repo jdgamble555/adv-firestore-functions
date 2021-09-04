@@ -10,14 +10,14 @@ const db = admin.firestore();
  * Update foreign key join data
  * @param change - change event
  * @param queryRef - query for fk docs
- * @param fields - fields to update
+ * @param fields - fields to update, default *
  * @param field - field to store updated fields
  * @param isMap - see if field dot notation equals map, default true
  */
 export async function updateJoinData(
   change: functions.Change<functions.firestore.DocumentSnapshot>,
   queryRef: FirebaseFirestore.Query,
-  fields: string[],
+  fields: string[] | null,
   field: string,
   del = false,
   isMap = true,
@@ -39,13 +39,17 @@ export async function updateJoinData(
   if (writeDoc) {
     // get join data
     const after: any = change.after.exists ? change.after.data() : null;
-    const joinData: any = {};
-    fields.forEach((f: string) => {
-      joinData[f] = after[f];
-    });
+    let joinData: any = {};
+    if (fields) {
+      fields.forEach((f: string) => {
+        joinData[f] = after[f];
+      });
+    } else {
+      joinData = after;
+    }
     // get data
     const data: any = {};
-    
+
     // handle map types...
     if (isMap && field.includes('.')) {
       const keys = field.split('.');
