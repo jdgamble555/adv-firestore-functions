@@ -435,17 +435,31 @@ export async function relevantIndex(
           temp.push(i.split(' ').map((v: string) => opts.filterFunc(v)).join(' '));
         }
         index = temp;
-      }
-      for (const phrase of index) {
-        if (phrase) {
-          let v = '';
-          for (let i = 0; i < phrase.length; i++) {
-            v = phrase.slice(0, i + 1);
-            // increment for relevance
-            m[v] = m[v] ? m[v] + 1 : 1;
+        for (const phrase of index) {
+          if (phrase) {
+            let v = '';
+            const t = phrase.split(' ');
+            while (t.length > 0) {
+              const r = t.shift();
+              v += v ? ' ' + r : r;
+              // increment for relevance
+              m[v] = m[v] ? m[v] + 1 : 1;
+            }
+          }
+        }
+      } else {
+        for (const phrase of index) {
+          if (phrase) {
+            let v = '';
+            for (let i = 0; i < phrase.length; i++) {
+              v = phrase.slice(0, i + 1);
+              // increment for relevance
+              m[v] = m[v] ? m[v] + 1 : 1;
+            }
           }
         }
       }
+
       // index individual field
       if (!opts.combine) {
         data[opts.termField] = m;

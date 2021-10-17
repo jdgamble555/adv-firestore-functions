@@ -51,6 +51,11 @@ export async function tagIndex(
 
     // delete or add tag
     const n = getAfter(change, field).includes(_tag) ? 1 : -1;
+    if (n === 1) {
+      console.log('added')
+    } else {
+      console.log('deleted')
+    }
 
     // queries
     const queryRef = db.collection(colId).where(field, 'array-contains', `${_tag}`);
