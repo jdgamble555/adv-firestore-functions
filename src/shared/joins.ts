@@ -323,7 +323,7 @@ export async function arrayIndex(
       if (opts.docFieldsToIndex) {
         indexData = typeof opts.docFieldsToIndex === "string"
           ? opts.docFieldsToIndex
-          : indexData.filter((f: string) => f in (opts.docFieldsToIndex as string[]))
+          : Object.fromEntries(Object.entries(indexData).filter(([f]) => (opts.docFieldsToIndex as string[]).includes(f) ));
       }
 
       // array or map type
