@@ -323,7 +323,8 @@ export async function arrayIndex(
       if (opts.docFieldsToIndex) {
         indexData = typeof opts.docFieldsToIndex === "string"
           ? opts.docFieldsToIndex
-          : indexData.filter((f: string) => f in (opts.docFieldsToIndex as string[]))
+          : opts.docFieldsToIndex
+          .reduce((obj, key) => ({ ...obj, [key]: indexData[key] }), {});
       }
 
       // array or map type
