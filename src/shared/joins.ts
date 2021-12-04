@@ -324,7 +324,7 @@ export async function arrayIndex(
         indexData = typeof opts.docFieldsToIndex === "string"
           ? opts.docFieldsToIndex
           : opts.docFieldsToIndex
-          .reduce((obj, key) => ({ ...obj, [key]: indexData[key] }), {});
+            .reduce((obj, key) => ({ ...obj, [key]: indexData[key] }), {});
       }
 
       // array or map type
