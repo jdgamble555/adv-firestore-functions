@@ -175,6 +175,10 @@ export async function relevantSearch(
     ? opts.query.split(' ').map((v: string) => opts.filterFunc(v)).join(' ')
     : opts.query;
 
+  if (typeof opts.fields === 'string') {
+    opts.fields = [opts.fields];
+  }
+
   if (opts.fields[0] === '_all') {
 
     // if start id
@@ -398,6 +402,10 @@ export async function relevantIndex(
   const colId = context.resource.name.split('/')[5];
   const docId = context.params.docId;
   const searchRef = db.doc(`${opts.searchCol}/${colId}/${opts.combinedCol}/${docId}`);
+
+  if (typeof opts.fields === 'string') {
+    opts.fields = [opts.fields];
+  }
 
   // delete
   if (deleteDoc(change)) {
