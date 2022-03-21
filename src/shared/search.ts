@@ -83,6 +83,10 @@ export async function fullTextIndex(
       // new indexes
       let fieldValue = getAfter(change, field);
 
+      if (fieldValue === null || fieldValue === undefined) {
+        return;
+      }
+
       // if array, turn into string
       if (Array.isArray(fieldValue)) {
         fieldValue = fieldValue.join(' ');
@@ -434,6 +438,11 @@ export async function relevantIndex(
       if (Array.isArray(fieldValue)) {
         fieldValue = fieldValue.join(' ');
       }
+
+      if (fieldValue === null || fieldValue === undefined) {
+        return;
+      }
+
       let index = createIndex(fieldValue, opts.numWords);
 
       // if filter function, run function on each word
@@ -560,6 +569,9 @@ export async function trigramIndex(
       if (Array.isArray(fieldValue)) {
         fieldValue = fieldValue.join(' ');
       }
+      if (fieldValue === null || fieldValue === undefined) {
+        return;
+      }
       // generate trigrams
       const index = createIndex(fieldValue, 0, true);
       const tg = generateTrigrams(index);
@@ -601,11 +613,11 @@ export async function trigramIndex(
  */
 function createIndex(html: any, n: number, stringOnly = false): any {
   // get rid of pre code blocks
-  function beforeReplace(text: any) {
+  function beforeReplace(text: string) {
     return text.replace(/&nbsp;/g, ' ').replace(/<pre[^>]*>([\s\S]*?)<\/pre>/g, '');
   }
   // create document after text stripped from html
-  function createDocs(text: any) {
+  function createDocs(text: string) {
     const finalArray: any = [];
     const wordArray = text
       .toLowerCase()
