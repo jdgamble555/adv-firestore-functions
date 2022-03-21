@@ -4,3 +4,4 @@
 /src/shared/offsets.js
 /src/shared/offsets.ts
 /src/shared/serviceAccountKey.json
+.npmrc

@@ -1,23 +1,24 @@
 {
-  "name": "adv-firestore-functions",
-  "version": "2.0.9",
+  "name": "@tusk-legacy/adv-firestore-functions",
+  "version": "2.0.10",
   "description": "Advanced Firestore Functions tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "publishConfig": { "registry": "https://npm.pkg.github.com/Tusk-Legacy" },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "eslint -p tsconfig.json",
-    "pub": "npm publish --access public",
-    "off": "tsc src/shared/offsets.ts && node src/shared/offsets.js"
+    "off": "tsc src/shared/offsets.ts && node src/shared/offsets.js",
+    "prepublish": "yarn build"
   },
   "files": [
     "lib/**/*"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jdgamble555/adv-firestore-functions.git"
+    "url": "git+https://github.com/Tusk-Legacy/adv-firestore-functions.git"
   },
   "keywords": [
     "firestore",
