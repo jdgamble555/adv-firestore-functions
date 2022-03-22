@@ -17,7 +17,7 @@ const db = admin.firestore();
  * @param searchCol - name of search collection
  */
 export async function fullTextIndex(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot>,
   context: functions.EventContext,
   field: string,
   fk = 'id',
@@ -373,7 +373,7 @@ export async function trigramSearch(
  * }
  */
 export async function relevantIndex(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot>,
   context: functions.EventContext,
   _opts: {
     fields: string[];
@@ -512,7 +512,7 @@ export async function relevantIndex(
  * }
  */
 export async function trigramIndex(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot>,
   context: functions.EventContext,
   _opts: {
     trigramCol?: string;

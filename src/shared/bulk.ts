@@ -10,11 +10,11 @@ const db = admin.firestore();
  * @param arr - array to chunk
  * @param chunk - number of chunks
  */
-export class ArrayChunk {
-  arr: any[];
+export class ArrayChunk<T> {
+  arr: T[];
   chunk: number;
 
-  constructor(arr: any[], chunk = 100) {
+  constructor(arr: T[], chunk = 100) {
     this.arr = arr;
     this.chunk = chunk;
   }
@@ -22,10 +22,10 @@ export class ArrayChunk {
    * for each chunk
    * @param funct - chunk function
    */
-  forEachChunk(funct: (ch: any[]) => void) {
+  forEachChunk(funct: (chunk: T[]) => Promise<void>) {
     for (let i = 0, j = this.arr.length; i < j; i += this.chunk) {
       const tempArray = this.arr.slice(i, i + this.chunk);
-      funct(tempArray);
+      void funct(tempArray);
     }
   }
 }
@@ -35,23 +35,23 @@ export class ArrayChunk {
  * @param field - field to update
  * @param data - data to update
  */
-export async function bulkUpdate(
-  docs: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[],
-  data: any,
+export function bulkUpdate<T extends Record<string,unknown>>(
+  docs: FirebaseFirestore.DocumentReference<T>[],
+  data: object,
 ) {
   // number of docs to delete
   const numDocs = docs.length;
 
   // chunk data
   const chunks = new ArrayChunk(docs);
-  chunks.forEachChunk(async (ch: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[]) => {
+  chunks.forEachChunk(async (chunk) => {
     const batch = db.batch();
     // add the join data to each document
-    ch.forEach((docRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>) => {
+    chunk.forEach((docRef) => {
       batch.set(docRef, data, { merge: true });
     });
     console.log('Updating batch of docs');
-    await batch.commit().catch((e: any) => {
+    await batch.commit().catch((e: Error) => {
       console.log(e);
     });
   });
@@ -63,21 +63,21 @@ export async function bulkUpdate(
  * @param docs - doc references to delete
  * @param field - field to delete
  */
-export async function bulkDelete(docs: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[]) {
+export function bulkDelete<T extends Record<string,unknown>>(docs: FirebaseFirestore.DocumentReference<T>[]) {
   // number of docs to delete
   const numDocs = docs.length;
 
   // chunk index array at 100 items
   const chunks = new ArrayChunk(docs);
-  chunks.forEachChunk(async (ch: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[]) => {
+  chunks.forEachChunk(async (chunk) => {
     const batch = db.batch();
 
     // delete the docs in batches
-    ch.forEach((docRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>) => {
+    chunk.forEach((docRef) => {
       batch.delete(docRef);
     });
     console.log('Deleting batch of docs');
-    await batch.commit().catch((e: any) => {
+    await batch.commit().catch((e: Error) => {
       console.log(e);
     });
   });

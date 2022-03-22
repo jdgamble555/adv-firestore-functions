@@ -1,5 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { getAfter, getBefore, createDoc, updateDoc, deleteDoc, getFriendlyURL } from './tools';
+import { DocumentSnapshot } from 'firebase-admin/firestore';
 try {
   admin.initializeApp();
 } catch (e) {
@@ -18,13 +20,13 @@ export async function createField(
   colPath: string,
   field: string,
   fkName: string,
-  fkVal: string,
+  fkVal: unknown,
   uniqueCol = '_uniques',
-): Promise<any> {
+) {
   console.log('Creating unique index on ', field);
 
   const titleRef = db.doc(`${uniqueCol}/${colPath}/${field}`);
-  return titleRef.set({ [fkName]: fkVal }).catch((e: any) => {
+  return titleRef.set({ [fkName]: fkVal }).catch((e: Error) => {
     console.log(e);
   });
 }
@@ -34,11 +36,11 @@ export async function createField(
  * @param field - field value
  * @param uniqueCol - unique collection
  */
-export async function deleteField(colPath: string, field: string, uniqueCol = '_uniques'): Promise<any> {
+export async function deleteField(colPath: string, field: string, uniqueCol = '_uniques') {
   console.log('Deleting unique index on ', field);
 
   const titleRef = db.doc(`${uniqueCol}/${colPath}/${field}`);
-  return titleRef.delete().catch((e: any) => {
+  return titleRef.delete().catch((e: Error) => {
     console.log(e);
   });
 }
@@ -56,9 +58,9 @@ export async function updateField(
   oldField: string,
   newField: string,
   fkName: string,
-  fkVal: string,
+  fkVal: unknown,
   uniqueCol = '_uniques',
-): Promise<any> {
+) {
   console.log('Changing unique index from ', oldField, ' to ', newField);
 
   const oldTitleRef = db.doc(`${uniqueCol}/${colPath}/${oldField}`);
@@ -68,7 +70,7 @@ export async function updateField(
   batch.delete(oldTitleRef);
   batch.create(newTitleRef, { [fkName]: fkVal });
 
-  return batch.commit().catch((e: any) => {
+  return batch.commit().catch((e: Error) => {
     console.log(e);
   });
 }
@@ -82,8 +84,8 @@ export async function updateField(
  * @param fkName - name of foreign key field
  * @param uniqueCol - name of unique collection
  */
-export async function uniqueField(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+export async function uniqueField<T extends Record<string,string>>(
+  change: functions.Change<DocumentSnapshot<T>>,
   context: functions.EventContext,
   field: string,
   friendly = false,
@@ -93,11 +95,9 @@ export async function uniqueField(
 ) {
   // get column information
   const colId = context.resource.name.split('/')[5];
-  const fkVal = context.params[fkName];
+  const fkVal = context.params[fkName] as unknown;
 
   const uniquePath = colId + '/' + field;
-
-  const { getAfter, getBefore, createDoc, updateDoc, deleteDoc, getFriendlyURL } = require('./tools');
 
   // get new and old field values
   if (!newField) {

@@ -13,7 +13,7 @@ const db = admin.firestore();
  * @param context - event context
  */
 export async function colCounter(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot>,
   context: functions.EventContext,
   countersCol = '_counters',
 ) {
@@ -90,7 +90,7 @@ export async function colCounter(
  * @param check - whether or not to check for create or delete doc
  */
 export async function queryCounter(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot>,
   context: functions.EventContext,
   queryRef: FirebaseFirestore.Query,
   countRef: FirebaseFirestore.DocumentReference,
@@ -170,7 +170,7 @@ export async function queryCounter(
  * @returns
  */
 export async function conditionCounter(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot>,
   context: functions.EventContext,
   field: string | FirebaseFirestore.FieldPath,
   operator: FirebaseFirestore.WhereFilterOp,

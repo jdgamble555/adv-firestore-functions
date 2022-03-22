@@ -1,5 +1,30 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { Timestamp, FieldValue, DocumentData, DocumentSnapshot } from 'firebase-admin/firestore';
+
+type GetTriggerData = {
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
+
+type SetTriggerData = {
+  createdAt?: FieldValue;
+  updatedAt?: FieldValue;
+};
+
+export function isKeyOfObject<T>(
+  key: string | number | symbol,
+  obj: T,
+): key is keyof T {
+  return key in obj;
+}
+
+export type Dictionary<K extends string, T> = { [P in K]?: T }
+
+export function isTimestamp(value: unknown): value is Timestamp {
+  return value !== null && value !== undefined && typeof (value as Timestamp).toDate === 'function';
+}
+
 try {
   admin.initializeApp();
 } catch (e) {
@@ -9,24 +34,24 @@ try {
  * The check functions for type of change
  * @param change
  */
-export function updateDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+export function updateDoc(change: functions.Change<DocumentSnapshot>) {
   return change.before.exists && change.after.exists;
 }
-export function createDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+export function createDoc(change: functions.Change<DocumentSnapshot>) {
   return change.after.exists && !change.before.exists;
 }
-export function deleteDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+export function deleteDoc(change: functions.Change<DocumentSnapshot>) {
   return change.before.exists && !change.after.exists;
 }
-export function writeDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+export function writeDoc(change: functions.Change<DocumentSnapshot>) {
   // createDoc || updateDoc
   return change.after.exists;
 }
-export function shiftDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+export function shiftDoc(change: functions.Change<DocumentSnapshot>) {
   // createDoc || deleteDoc
   return !change.after.exists || !change.before.exists;
 }
-export function popDoc(change: functions.Change<functions.firestore.DocumentSnapshot>) {
+export function popDoc(change: functions.Change<DocumentSnapshot>) {
   // updateDoc || deleteDoc;
   return change.before.exists;
 }
@@ -55,10 +80,10 @@ export function getFriendlyURL(url: string): string {
  * @param after
  * @param before
  */
-export function canContinue(after: any, before: any): boolean {
+export function canContinue(after: GetTriggerData, before: GetTriggerData): boolean {
   // if update trigger
   if (before.updatedAt && after.updatedAt) {
-    if (after.updatedAt._seconds !== before.updatedAt._seconds) {
+    if (after.updatedAt.seconds !== before.updatedAt.seconds) {
       return false;
     }
   }
@@ -74,21 +99,22 @@ export function canContinue(after: any, before: any): boolean {
  * @param context - event context
  */
 export function isTriggerFunction(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot>,
   context: functions.EventContext,
 ) {
   // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
-  const before: any = change.before.exists ? change.before.data() : null;
+  const after = change.after.exists ? change.after.data() : null;
+  const before = change.before.exists ? change.before.data() : null;
 
   const eventId = context.eventId;
 
-  if (updateDoc(change) && !canContinue(after, before)) {
+  if (updateDoc(change) && after && before && !canContinue(after, before)) {
     console.log('Trigger function run: ', eventId);
     return true;
   }
   return false;
 }
+
 /**
  * trigger Function to update dates and filtered values
  * @param change - change event
@@ -96,8 +122,8 @@ export function isTriggerFunction(
  * @param updateDates - use createdAt and updatedAt
  */
 export async function triggerFunction(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
-  data: any = {},
+  change: functions.Change<DocumentSnapshot>,
+  data: SetTriggerData = {},
   updateDates = true,
 ) {
   if (updateDates) {
@@ -114,12 +140,12 @@ export async function triggerFunction(
     // if there is data to update, update
     if (Object.keys(data).length) {
       console.log('Running function again to update data:', JSON.stringify(data));
-      await change.after.ref.set(data, { merge: true }).catch((e: any) => {
+      await change.after.ref.set(data, { merge: true }).catch((e: Error) => {
         console.log(e);
       });
     }
   }
-  return null;
+  return;
 }
 /**
  * Gets the unique values from the combined array
@@ -127,8 +153,8 @@ export async function triggerFunction(
  * @param a2
  * @return - unique values array
  */
-export function findSingleValues(a1: any[], a2: any[]): any[] {
-  return a1.concat(a2).filter((v: any) => {
+export function findSingleValues(a1: unknown[], a2: unknown[]): unknown[] {
+  return a1.concat(a2).filter((v: unknown) => {
     if (!a1.includes(v) || !a2.includes(v)) {
       return v;
     }
@@ -140,7 +166,7 @@ export function findSingleValues(a1: any[], a2: any[]): any[] {
  * @param a2
  * @return - boolean
  */
-export function arraysEqual(a1: any[], a2: any[]): boolean {
+export function jsonEqual(a1: unknown, a2: unknown): boolean {
   return JSON.stringify(a1) === JSON.stringify(a2);
 }
 /**
@@ -148,41 +174,41 @@ export function arraysEqual(a1: any[], a2: any[]): boolean {
  * @param change
  * @param val
  */
-export function getAfter(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
+export function getAfter<T extends Record<string, unknown>>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T) {
   // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
+  const after = change.after.data();
   if (val === 'id') {
     return after ? change.after.id : '';
   }
-  return valueAfter(change, val) ? after[val] : '';
+  return after?.[val] as T[keyof T];
 }
 /**
  * Get the before value or null
  * @param change
  * @param val
  */
-export function getBefore(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
+export function getBefore<T extends Record<string, unknown>>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T) {
   // simplify input data
-  const before: any = change.before.exists ? change.before.data() : null;
+  const before = change.before.data();
   if (val === 'id') {
     return before ? change.before.id : '';
   }
-  return valueBefore(change, val) ? before[val] : '';
+  return before?.[val] as T[keyof T];
 }
 /**
  * Returns the latest value of a field
  * @param change
  * @param val
  */
-export function getValue(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): any {
+export function getValue<T extends Record<string, unknown>>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T) {
   // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
-  const before: any = change.before.exists ? change.before.data() : null;
+  const after = change.after.exists ? change.after.data() : null;
+  const before = change.before.exists ? change.before.data() : null;
 
   if (val === 'id') {
     return after ? change.after.id : change.before.id;
   }
-  return valueAfter(change, val) ? after[val] : before[val];
+  return after ? after[val] : before?.[val] as T[keyof T];
 }
 /**
  * Determine if there is a before value
@@ -190,8 +216,8 @@ export function getValue(change: functions.Change<functions.firestore.DocumentSn
  * @param val
  * @returns
  */
-export function valueBefore(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
-  const before: any = change.before.exists ? change.before.data() : null;
+export function valueBefore<T extends DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
+  const before = change.before.exists ? change.before.data() : null;
   if (before) {
     if (val === 'id' || val in before) {
       return true;
@@ -205,8 +231,8 @@ export function valueBefore(change: functions.Change<functions.firestore.Documen
  * @param val
  * @returns
  */
-export function valueAfter(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
-  const after: any = change.after.exists ? change.after.data() : null;
+export function valueAfter<T extends DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
+  const after = change.after.exists ? change.after.data() : null;
   if (after) {
     if (val === 'id' || val in after) {
       return true;
@@ -220,7 +246,7 @@ export function valueAfter(change: functions.Change<functions.firestore.Document
  * @param val - field
  * @returns
  */
-export function valueCreate(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
+export function valueCreate<T extends DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
   if (!valueBefore(change, val) && valueAfter(change, val)) {
     return true;
   }
@@ -232,7 +258,7 @@ export function valueCreate(change: functions.Change<functions.firestore.Documen
  * @param val - field
  * @returns
  */
-export function valueDelete(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
+export function valueDelete<T extends DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
   if (valueBefore(change, val) && !valueAfter(change, val)) {
     return true;
   }
@@ -243,11 +269,11 @@ export function valueDelete(change: functions.Change<functions.firestore.Documen
  * @param change
  * @param val
  */
-export function valueChange(change: functions.Change<functions.firestore.DocumentSnapshot>, val: string): boolean {
+export function valueChange<T extends admin.firestore.DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
   if (valueDelete(change, val) || valueCreate(change, val)) {
     return true;
   }
-  if (arraysEqual(getBefore(change, val), getAfter(change, val))) {
+  if (jsonEqual(getBefore(change, val), getAfter(change, val))) {
     return false;
   }
   return true;
@@ -264,9 +290,9 @@ export function getCollection(context: functions.EventContext) {
  * @param change - change event
  * @param arr - array of values to check
  */
-export function arrayValueChange(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
-  arr: string[],
+export function arrayValueChange<T extends admin.firestore.DocumentData>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  arr: (keyof T)[],
 ): boolean {
   // check each array
   for (const v of arr) {
@@ -280,7 +306,7 @@ export function arrayValueChange(
  * Returns the category array
  * @param category
  */
-export function getCatArray(category: string): any[] {
+export function getCatArray(category: string): string[] {
   // create catPath and catArray
   const catArray: string[] = [];
   let cat = category;
@@ -296,20 +322,20 @@ export function getCatArray(category: string): any[] {
  * @param change
  * @param fk
  */
-export function fkChange(change: functions.Change<functions.firestore.DocumentSnapshot>, fk: any) {
+export function fkChange(change: functions.Change<DocumentSnapshot>, fk: string|string[]) {
   // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
-  const before: any = change.before.exists ? change.before.data() : null;
+  const after = change.after.data();
+  const before = change.before.data();
 
   if (Array.isArray(fk)) {
     for (const k of fk) {
-      if (before[k] !== after[k]) {
+      if (before?.[k] !== after?.[k]) {
         return true;
       }
     }
     return false;
   }
-  return before[fk] !== after[fk];
+  return before?.[fk] !== after?.[fk];
 }
 
 export function soundex(s: string) {
@@ -340,24 +366,23 @@ export function soundex(s: string) {
     m: 5,
     n: 5,
     r: 6,
-  } as any;
+  } as {[field: string]: string | number };
   r =
     f +
-    a
-      .map((v) => {
-        return codes[v];
+    a.map((v) => {
+        return `${codes[v]}`;
       })
       .filter((v, i, b) => {
-        return i === 0 ? v !== codes[f] : v !== b[i - 1];
+        return i === 0 ? v !== `${codes[f]}` : v !== b[i - 1];
       })
       .join("");
   return (r + "000").slice(0, 4).toUpperCase();
 }
 
 export function generateTrigrams(s: string) {
-  const trigrams: any = [];
-  function* ngrams(a: any, n: number) {
-    const buf: any = [];
+  const trigrams: string[] = [];
+  function* ngrams(a: string, n: number) {
+    const buf: string[] = [];
     for (const x of a) {
       buf.push(x);
       if (buf.length === n) {
@@ -370,5 +395,5 @@ export function generateTrigrams(s: string) {
     trigrams.push(g.join(''));
   }
   // unique only
-  return trigrams.filter((v: any, i: any, a: any) => a.indexOf(v) === i);
+  return trigrams.filter((v, i, a) => a.indexOf(v) === i);
 }

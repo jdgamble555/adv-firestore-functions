@@ -18,7 +18,7 @@ const db = admin.firestore();
  * @param maxNumTags - the maximum number of tags to put in a doc, default is 100
  */
 export async function tagIndex(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot>,
   context: functions.EventContext,
   field = 'tags',
   tagCol = '_tags',
