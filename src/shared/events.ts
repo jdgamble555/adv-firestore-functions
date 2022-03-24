@@ -1,5 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { ArrayChunk } from './bulk';
+
 try {
   admin.initializeApp();
 } catch (e) {
@@ -21,7 +23,6 @@ export async function eventExists(context: functions.EventContext, eventsCol = '
   if (globalThis.AFF_EVENT === eventId) {
     return false;
   }
-  const { ArrayChunk } = require('./bulk');
   globalThis.AFF_EVENT = eventId;
 
   // create event for accurate increment
@@ -38,7 +39,7 @@ export async function eventExists(context: functions.EventContext, eventsCol = '
     .set({
       completed: admin.firestore.FieldValue.serverTimestamp(),
     })
-    .catch((e: any) => {
+    .catch((e) => {
       console.log(e);
     });
   // get yesterday
@@ -46,24 +47,24 @@ export async function eventExists(context: functions.EventContext, eventsCol = '
   yesterday.setDate(yesterday.getDate() - 1);
 
   // delete all _event docs older than yesterday
-  const delDocs: any = [];
+  const delDocs: FirebaseFirestore.DocumentReference[] = [];
   const eventFilter = db.collection(eventsCol).where('completed', '<=', yesterday);
   const eventFilterSnap = await eventFilter.get();
-  eventFilterSnap.forEach((doc: any) => {
+  eventFilterSnap.forEach((doc) => {
     // collect all document references
     delDocs.push(doc.ref);
   });
   const numDocs = delDocs.length;
   // chunk index array at 100 items
   const chunks = new ArrayChunk(delDocs);
-  chunks.forEachChunk(async (ch: any[]) => {
+  chunks.forEachChunk(async (chunk) => {
     const batch = db.batch();
-    ch.forEach((docRef: any) => {
+    chunk.forEach((docRef) => {
       batch.delete(docRef);
     });
     // delete chunk of events
     console.log('Deleting old events');
-    await batch.commit().catch((e: any) => {
+    await batch.commit().catch((e) => {
       console.log(e);
     });
     console.log('Finished deleting ', numDocs, ' events');

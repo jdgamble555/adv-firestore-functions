@@ -10,10 +10,12 @@
         "skipLibCheck": true
     },
     "include": [
+      ".eslintrc.js",
       "global.d.ts",
       "src"
     ],
     "exclude": [
-        "node_modules"
+        "node_modules",
+        "lib",
     ]
 }

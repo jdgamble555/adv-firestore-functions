@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { Timestamp, FieldValue, DocumentData, DocumentSnapshot } from 'firebase-admin/firestore';
+import { DocumentRecord } from './types';
 
 type GetTriggerData = {
   createdAt?: Timestamp;
@@ -11,19 +12,6 @@ type SetTriggerData = {
   createdAt?: FieldValue;
   updatedAt?: FieldValue;
 };
-
-export function isKeyOfObject<T>(
-  key: string | number | symbol,
-  obj: T,
-): key is keyof T {
-  return key in obj;
-}
-
-export type Dictionary<K extends string, T> = { [P in K]?: T }
-
-export function isTimestamp(value: unknown): value is Timestamp {
-  return value !== null && value !== undefined && typeof (value as Timestamp).toDate === 'function';
-}
 
 try {
   admin.initializeApp();
@@ -98,10 +86,7 @@ export function canContinue(after: GetTriggerData, before: GetTriggerData): bool
  * @param change - change ref
  * @param context - event context
  */
-export function isTriggerFunction(
-  change: functions.Change<DocumentSnapshot>,
-  context: functions.EventContext,
-) {
+export function isTriggerFunction(change: functions.Change<DocumentSnapshot>, context: functions.EventContext) {
   // simplify input data
   const after = change.after.exists ? change.after.data() : null;
   const before = change.before.exists ? change.before.data() : null;
@@ -153,8 +138,8 @@ export async function triggerFunction(
  * @param a2
  * @return - unique values array
  */
-export function findSingleValues(a1: unknown[], a2: unknown[]): unknown[] {
-  return a1.concat(a2).filter((v: unknown) => {
+export function findSingleValues<T>(a1: T[], a2: T[]): T[] {
+  return a1.concat(a2).filter((v: T) => {
     if (!a1.includes(v) || !a2.includes(v)) {
       return v;
     }
@@ -174,11 +159,14 @@ export function jsonEqual(a1: unknown, a2: unknown): boolean {
  * @param change
  * @param val
  */
-export function getAfter<T extends Record<string, unknown>>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T) {
+export function getAfter<T extends DocumentRecord<string, unknown>>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  val: keyof T,
+) {
   // simplify input data
   const after = change.after.data();
   if (val === 'id') {
-    return after ? change.after.id : '';
+    return after ? (change.after.id as T[keyof T]) : ('' as T[keyof T]);
   }
   return after?.[val] as T[keyof T];
 }
@@ -187,11 +175,14 @@ export function getAfter<T extends Record<string, unknown>>(change: functions.Ch
  * @param change
  * @param val
  */
-export function getBefore<T extends Record<string, unknown>>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T) {
+export function getBefore<T extends DocumentRecord<string, unknown>>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  val: keyof T,
+) {
   // simplify input data
   const before = change.before.data();
   if (val === 'id') {
-    return before ? change.before.id : '';
+    return before ? (change.before.id as T[keyof T]) : ('' as T[keyof T]);
   }
   return before?.[val] as T[keyof T];
 }
@@ -200,15 +191,18 @@ export function getBefore<T extends Record<string, unknown>>(change: functions.C
  * @param change
  * @param val
  */
-export function getValue<T extends Record<string, unknown>>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T) {
+export function getValue<T extends DocumentRecord<string, unknown>>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  val: keyof T,
+) {
   // simplify input data
   const after = change.after.exists ? change.after.data() : null;
   const before = change.before.exists ? change.before.data() : null;
 
   if (val === 'id') {
-    return after ? change.after.id : change.before.id;
+    return after ? (change.after.id as T[keyof T]) : (change.before.id as T[keyof T]);
   }
-  return after ? after[val] : before?.[val] as T[keyof T];
+  return after ? after[val] : (before?.[val] as T[keyof T]);
 }
 /**
  * Determine if there is a before value
@@ -216,7 +210,10 @@ export function getValue<T extends Record<string, unknown>>(change: functions.Ch
  * @param val
  * @returns
  */
-export function valueBefore<T extends DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
+export function valueBefore<T extends DocumentData>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  val: keyof T,
+): boolean {
   const before = change.before.exists ? change.before.data() : null;
   if (before) {
     if (val === 'id' || val in before) {
@@ -231,7 +228,10 @@ export function valueBefore<T extends DocumentData>(change: functions.Change<Doc
  * @param val
  * @returns
  */
-export function valueAfter<T extends DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
+export function valueAfter<T extends DocumentData>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  val: keyof T,
+): boolean {
   const after = change.after.exists ? change.after.data() : null;
   if (after) {
     if (val === 'id' || val in after) {
@@ -246,7 +246,10 @@ export function valueAfter<T extends DocumentData>(change: functions.Change<Docu
  * @param val - field
  * @returns
  */
-export function valueCreate<T extends DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
+export function valueCreate<T extends DocumentData>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  val: keyof T,
+): boolean {
   if (!valueBefore(change, val) && valueAfter(change, val)) {
     return true;
   }
@@ -258,7 +261,10 @@ export function valueCreate<T extends DocumentData>(change: functions.Change<Doc
  * @param val - field
  * @returns
  */
-export function valueDelete<T extends DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
+export function valueDelete<T extends DocumentData>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  val: keyof T,
+): boolean {
   if (valueBefore(change, val) && !valueAfter(change, val)) {
     return true;
   }
@@ -269,7 +275,10 @@ export function valueDelete<T extends DocumentData>(change: functions.Change<Doc
  * @param change
  * @param val
  */
-export function valueChange<T extends admin.firestore.DocumentData>(change: functions.Change<DocumentSnapshot<T>>, val: keyof T): boolean {
+export function valueChange<T extends admin.firestore.DocumentData>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  val: keyof T,
+): boolean {
   if (valueDelete(change, val) || valueCreate(change, val)) {
     return true;
   }
@@ -322,7 +331,7 @@ export function getCatArray(category: string): string[] {
  * @param change
  * @param fk
  */
-export function fkChange(change: functions.Change<DocumentSnapshot>, fk: string|string[]) {
+export function fkChange(change: functions.Change<DocumentSnapshot>, fk: string | string[]) {
   // simplify input data
   const after = change.after.data();
   const before = change.before.data();
@@ -339,15 +348,15 @@ export function fkChange(change: functions.Change<DocumentSnapshot>, fk: string|
 }
 
 export function soundex(s: string) {
-  const a = s.toLowerCase().split("");
+  const a = s.toLowerCase().split('');
   const f = a.shift() as string;
-  let r = "";
+  let r = '';
   const codes = {
-    a: "",
-    e: "",
-    i: "",
-    o: "",
-    u: "",
+    a: '',
+    e: '',
+    i: '',
+    o: '',
+    u: '',
     b: 1,
     f: 1,
     p: 1,
@@ -366,17 +375,18 @@ export function soundex(s: string) {
     m: 5,
     n: 5,
     r: 6,
-  } as {[field: string]: string | number };
+  } as { [field: string]: string | number };
   r =
     f +
-    a.map((v) => {
+    a
+      .map((v) => {
         return `${codes[v]}`;
       })
       .filter((v, i, b) => {
         return i === 0 ? v !== `${codes[f]}` : v !== b[i - 1];
       })
-      .join("");
-  return (r + "000").slice(0, 4).toUpperCase();
+      .join('');
+  return (r + '000').slice(0, 4).toUpperCase();
 }
 
 export function generateTrigrams(s: string) {

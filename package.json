@@ -4,12 +4,14 @@
   "description": "Advanced Firestore Functions tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
-  "publishConfig": { "registry": "https://npm.pkg.github.com/Tusk-Legacy" },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/Tusk-Legacy"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "format": "prettier --write \"src/**/*.ts\"",
-    "lint": "eslint -p tsconfig.json",
+    "lint": "eslint .",
     "off": "tsc src/shared/offsets.ts && node src/shared/offsets.js",
     "prepublish": "yarn build"
   },
@@ -35,6 +37,7 @@
   },
   "homepage": "https://github.com/jdgamble555/adv-firestore-functions#readme",
   "devDependencies": {
+    "@types/html-to-text": "^8.1.0",
     "@typescript-eslint/eslint-plugin": "^5.16.0",
     "@typescript-eslint/parser": "^5.16.0",
     "eslint": "^8.11.0",
@@ -43,6 +46,7 @@
     "typescript": "^4.6.2"
   },
   "dependencies": {
+    "eslint-plugin-prettier": "^4.0.0",
     "firebase-admin": "^10.0.2",
     "firebase-functions": "^3.11.0",
     "html-to-text": "^8.1.0"

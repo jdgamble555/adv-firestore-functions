@@ -9,7 +9,7 @@ try {
 }
 const db = admin.firestore();
 
-type CounterDocumentData = {[field: string]: string};
+type CounterDocumentData = { [field: string]: string };
 
 /**
  * Count number of documents in a category

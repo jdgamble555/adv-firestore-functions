@@ -1,5 +1,9 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { DocumentRecord } from './types';
+import { DocumentSnapshot } from 'firebase-admin/firestore';
+import { eventExists } from './events';
+import { getAfter, getBefore, valueChange } from './tools';
 try {
   admin.initializeApp();
 } catch (e) {
@@ -17,7 +21,6 @@ export async function colCounter(
   context: functions.EventContext,
   countersCol = '_counters',
 ) {
-  const { eventExists } = require('./events');
   // don't run if repeated function
   if (await eventExists(context)) {
     return null;
@@ -37,10 +40,12 @@ export async function colCounter(
   console.log('Updating ', parentCol, ' counter');
 
   // check for sub collection
-  const isSubCol = context.params.subDocId;
+  const isSubCol = 'subDocId' in context.params;
 
-  const parentDoc = `${countersCol}/${parentCol}`;
-  const countDoc = isSubCol ? `${parentDoc}/${context.params.docId}/${context.params.subColId}` : `${parentDoc}`;
+  const parentDoc = `${countersCol}/${parentCol ?? ''}`;
+  const countDoc = isSubCol
+    ? `${parentDoc}/${context.params.docId as string}/${context.params.subColId as string}`
+    : `${parentDoc}`;
 
   // collection references
   const countRef = db.doc(countDoc);
@@ -51,29 +56,18 @@ export async function colCounter(
     // createDoc or deleteDoc
     const n = createDoc ? 1 : -1;
     const i = admin.firestore.FieldValue.increment(n);
+    return countRef.update(countRef, { count: i });
 
-    return db
-      .runTransaction(
-        async (t: FirebaseFirestore.Transaction): Promise<any> => {
-          // add event and update size
-          return t.update(countRef, { count: i });
-        },
-      )
-      .catch((e: any) => {
-        console.log(e);
-      });
     // otherwise count all docs in the collection and add size
   } else {
     const colRef = db.collection(change.after.ref.parent.path);
     return db
-      .runTransaction(
-        async (t: FirebaseFirestore.Transaction): Promise<any> => {
-          // update size
-          const colSnap = await t.get(colRef);
-          return t.set(countRef, { count: colSnap.size });
-        },
-      )
-      .catch((e: any) => {
+      .runTransaction(async (t) => {
+        // update size
+        const colSnap = await t.get(colRef);
+        return t.set(countRef, { count: colSnap.size });
+      })
+      .catch((e) => {
         console.log(e);
       });
   }
@@ -89,17 +83,16 @@ export async function colCounter(
  * @param n - (1,-1)  1 for create, -1 for delete
  * @param check - whether or not to check for create or delete doc
  */
-export async function queryCounter(
-  change: functions.Change<DocumentSnapshot>,
+export async function queryCounter<T extends DocumentRecord<string, unknown>>(
+  change: functions.Change<DocumentSnapshot<T>>,
   context: functions.EventContext,
-  queryRef: FirebaseFirestore.Query,
-  countRef: FirebaseFirestore.DocumentReference,
-  countName: string = '',
+  queryRef: FirebaseFirestore.Query<T>,
+  countRef: FirebaseFirestore.DocumentReference<T>,
+  countName = '',
   del = 0,
   n = 0,
   check = true,
 ) {
-  const { eventExists } = require('./events');
   // don't run if repeated function
   if (await eventExists(context)) {
     return null;
@@ -114,7 +107,7 @@ export async function queryCounter(
   // collection name
   const colId = context.resource.name.split('/')[5];
 
-  if (!countName) {
+  if (!countName || countName.length === 0) {
     countName = colId + 'Count';
   }
   console.log('Updating ', countName, ' counter on ', countRef.path);
@@ -132,31 +125,47 @@ export async function queryCounter(
     if (countSnap.get(countName) === 1 && n === -1 && del === 1) {
       return countRef.delete();
     }
-    return db
-      .runTransaction(
-        async (t: FirebaseFirestore.Transaction): Promise<any> => {
-          // add event and update size
-          return t.set(countRef, { [countName]: i }, { merge: true });
-        },
-      )
-      .catch((e: any) => {
-        console.log(e);
-      });
+
+    return countRef.set({ [countName]: i } as Partial<T>, { merge: true });
+
     // otherwise count all docs in the collection and add size
   } else {
     return db
-      .runTransaction(
-        async (t: FirebaseFirestore.Transaction): Promise<any> => {
-          // update size
-          const colSnap = await t.get(queryRef);
-          return t.set(countRef, { [countName]: colSnap.size }, { merge: true });
-        },
-      )
-      .catch((e: any) => {
+      .runTransaction(async (t) => {
+        // update size
+        const colSnap = await t.get(queryRef);
+        return t.set(countRef, { [countName]: colSnap.size } as Partial<T>, {
+          merge: true,
+        });
+      })
+      .catch((e) => {
         console.log(e);
       });
   }
 }
+
+function evalBooleanExpression(
+  firstOperand: string,
+  operator: Omit<FirebaseFirestore.WhereFilterOp, 'array-contains' | 'in' | 'not-in' | 'array-contains-any'>,
+  secondOperand: string,
+) {
+  switch (operator) {
+    case '<':
+      return firstOperand < secondOperand;
+    case '<=':
+      return firstOperand <= secondOperand;
+    case '==':
+      return firstOperand == secondOperand;
+    case '!=':
+      return firstOperand != secondOperand;
+    case '>=':
+      return firstOperand <= secondOperand;
+    case '>':
+      return firstOperand > secondOperand;
+  }
+  return false;
+}
+
 /**
  * Adds a condition counter to a doc
  * @param change - change ref
@@ -170,34 +179,33 @@ export async function queryCounter(
  * @returns
  */
 export async function conditionCounter(
-  change: functions.Change<DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot<DocumentRecord<string, string>>>,
   context: functions.EventContext,
   field: string | FirebaseFirestore.FieldPath,
-  operator: FirebaseFirestore.WhereFilterOp,
-  value: any,
-  countName: string = '',
+  operator: Omit<FirebaseFirestore.WhereFilterOp, 'array-contains' | 'in' | 'not-in' | 'array-contains-any'>,
+  value: string,
+  countName = '',
   countersCol = '_counters',
   del = false,
 ) {
-  const { eventExists } = require('./events');
+  const fieldString = field.toString();
+
   // don't run if repeated function
   if (await eventExists(context)) {
     return null;
   }
-  // simplify event types
-  const { valueChange, getBefore, getAfter } = require('./tools');
 
   // evaluate old and new expressions
-  const trueNew = eval("'" + getAfter(change, field) + "'" + ' ' + operator + ' ' + "'" + value + "'");
-  const trueOld = eval("'" + getBefore(change, field) + "'" + ' ' + operator + ' ' + "'" + value + "'");
+  const trueNew = evalBooleanExpression(getAfter(change, fieldString) ?? '', operator, value);
+  const trueOld = evalBooleanExpression(getBefore(change, fieldString) ?? '', operator, value);
 
   // change to true or change to false
-  const changeToTrue = trueNew && !trueOld;
-  const changeToFalse = trueOld && !trueNew;
+  const changeToTrue: boolean = trueNew && !trueOld;
+  const changeToFalse: boolean = trueOld && !trueNew;
   const changeBool = changeToTrue || changeToFalse;
 
   // if no valueChange or no change in expression eval
-  if (!valueChange(change, field) || !changeBool) {
+  if (!valueChange(change, fieldString) || !changeBool) {
     return null;
   }
 
@@ -205,7 +213,7 @@ export async function conditionCounter(
   const colId = context.resource.name.split('/')[5];
   const countDoc = `${countersCol}/${colId}`;
 
-  const _countName = countName ? countName : field + 'Count';
+  const _countName = countName ? countName : fieldString + 'Count';
 
   // collection references
   const countRef = db.doc(countDoc);
@@ -223,28 +231,20 @@ export async function conditionCounter(
     if (countSnap.get(_countName) === 1 && _n === -1 && del === true) {
       return countRef.delete();
     }
-    return db
-      .runTransaction(
-        async (t: FirebaseFirestore.Transaction): Promise<any> => {
-          // add event and update size
-          return t.set(countRef, { [_countName]: i }, { merge: true });
-        },
-      )
-      .catch((e: any) => {
-        console.log(e);
-      });
+
+    // add event and update size
+    return countRef.set({ [_countName]: i }, { merge: true });
+
     // otherwise count all docs in the collection and add size
   } else {
     return db
-      .runTransaction(
-        async (t: FirebaseFirestore.Transaction): Promise<any> => {
-          // update size
-          const queryRef = db.collection(colId).where(field, operator, value);
-          const colSnap = await t.get(queryRef);
-          return t.set(countRef, { [_countName]: colSnap.size }, { merge: true });
-        },
-      )
-      .catch((e: any) => {
+      .runTransaction(async (t) => {
+        // update size
+        const queryRef = db.collection(colId).where(field, operator as FirebaseFirestore.WhereFilterOp, value);
+        const colSnap = await t.get(queryRef);
+        return t.set(countRef, { [_countName]: colSnap.size }, { merge: true });
+      })
+      .catch((e) => {
         console.log(e);
       });
   }
