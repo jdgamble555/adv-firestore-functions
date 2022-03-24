@@ -18,12 +18,11 @@ export async function eventExists(context: functions.EventContext, eventsCol = '
   const eventId = context.eventId;
 
   // only check events once per invocation
-  if ((global as any).AFF_EVENT === eventId) {
+  if (globalThis.AFF_EVENT === eventId) {
     return false;
   }
-  (global as any).AFF_EVENT = eventId;
-
   const { ArrayChunk } = require('./bulk');
+  globalThis.AFF_EVENT = eventId;
 
   // create event for accurate increment
   const eventRef = db.doc(`${eventsCol}/${eventId}`);
