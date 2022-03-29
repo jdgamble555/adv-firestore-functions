@@ -398,6 +398,109 @@ export async function trigramSearch({
       return;
     });
 }
+
+export async function initRelevantIndex(
+  collectionId: string,
+  docId: string,
+  {
+    fields,
+    searchCol = '_search',
+    numWords = 6,
+    combine = true,
+    combinedCol = '_all',
+    termField = '_term',
+    filterFunc,
+  }: RelevantIndexOptions,
+) {
+  const searchRef = db.doc(`${searchCol}/${collectionId}/${combinedCol}/${docId}`);
+
+  if (typeof fields === 'string') {
+    fields = [fields];
+  }
+
+  // create or update
+  if (true) {
+    const data = {} as DocumentRecord<string, string | DocumentRecord<string, number>>;
+    let m = {} as DocumentRecord<string, number>;
+
+    const docData = (await db.doc(`${collectionId}/${docId}`).get()).data();
+
+    // go through each field to index
+    for (const field of fields) {
+      // new indexes
+      let fieldValue = docData?.[field] as string;
+
+      // if array, turn into string
+      if (Array.isArray(fieldValue)) {
+        fieldValue = fieldValue.join(' ');
+      }
+
+      if (fieldValue === null || fieldValue === undefined || fieldValue.length === 0) {
+        return;
+      }
+
+      let index = createIndex(fieldValue, numWords);
+
+      // if filter function, run function on each word
+      if (filterFunc) {
+        const temp = [];
+        for (const i of index) {
+          temp.push(
+            i
+              .split(' ')
+              .map((v: string) => filterFunc(v))
+              .join(' '),
+          );
+        }
+        index = temp;
+        for (const phrase of index) {
+          if (phrase) {
+            let v = '';
+            const t = phrase.split(' ');
+            while (t.length > 0) {
+              const r = t.shift() ?? '';
+              v += v ? ' ' + r : r;
+              // increment for relevance
+              m[v] = m[v] ?? 0 + 1;
+            }
+          }
+        }
+      } else {
+        for (const phrase of index) {
+          if (phrase) {
+            let v = '';
+            for (let i = 0; i < phrase.length; i++) {
+              v = phrase.slice(0, i + 1);
+              // increment for relevance
+              m[v] = m[v] ?? 0 + 1;
+            }
+          }
+        }
+      }
+
+      // index individual field
+      if (!combine) {
+        data[termField] = m;
+        console.log('Creating relevant index on ', field, ' field for ', collectionId + '/' + docId);
+        const searchRefF = db.doc(`${searchCol}/${collectionId}/${field}/${docId}`);
+        await searchRefF.set(data).catch((e) => {
+          console.log(e);
+        });
+        // clear index history
+        m = {};
+      }
+    }
+    if (combine) {
+      data[termField] = m;
+      console.log('Saving new relevant index for ', collectionId + '/' + docId);
+      await searchRef.set(data).catch((e) => {
+        console.log(e);
+      });
+    }
+  }
+  return null;
+}
+
 /**
  * indexes a collection by relevance
  * @param change
@@ -432,8 +535,8 @@ export async function relevantIndex(
   // get collection
   const colId = context.resource.name.split('/')[5];
   const { docId } = context.params as { docId?: string };
-  if (typeof docId !== 'string' || docId.length < 1) {
-    throw new Error('Missing doc Id');
+  if (typeof colId !== 'string' || colId.length < 1) {
+    throw new Error('Missing collection Id');
   }
 
   if (typeof docId !== 'string' || docId.length < 1) {
