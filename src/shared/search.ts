@@ -472,7 +472,7 @@ export async function relevantIndex(
         fieldValue = fieldValue.join(' ');
       }
 
-      if (fieldValue === null || fieldValue === undefined) {
+      if (fieldValue === null || fieldValue === undefined || fieldValue.length === 0) {
         return;
       }
 
