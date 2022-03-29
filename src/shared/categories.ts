@@ -49,10 +49,10 @@ export async function catDocCounter(
   }
 
   // collection name
-  const colId = context.resource.name.split('/')[5];
+  const collectionId = context.resource.name.split('/')[5];
 
   if (!counter) {
-    counter = colId + 'Count';
+    counter = collectionId + 'Count';
   }
 
   // fieldCount on categoriesDoc(s)
@@ -64,7 +64,7 @@ export async function catDocCounter(
     const catRef = db.doc(`${catCol}/${catSnap.docs[0].id}`);
 
     // get cat query and update it
-    const catsQuery = db.collection(colId).where(arrayField, 'array-contains', _category);
+    const catsQuery = db.collection(collectionId).where(arrayField, 'array-contains', _category);
     await queryCounter(change, context, catsQuery, catRef, counter);
 
     // get parent
@@ -97,7 +97,7 @@ export async function subCatCounter(
   const before = change.before.exists ? change.before.data() : null;
 
   // collection name
-  const colId = context.resource.name.split('/')[5];
+  const collectionId = context.resource.name.split('/')[5];
 
   // get category variables
   const parent = writeDoc ? after?.[parentField] : before?.[parentField];
@@ -107,18 +107,18 @@ export async function subCatCounter(
   }
 
   if (!counter) {
-    counter = colId + 'Count';
+    counter = collectionId + 'Count';
   }
 
   let _category = parent;
   while (_category !== '') {
     // get parent category doc
-    const catSearch = db.collection(colId).where(pathField, '==', _category);
+    const catSearch = db.collection(collectionId).where(pathField, '==', _category);
     const catSnap = await catSearch.get();
-    const catRef = db.doc(`${colId}/${catSnap.docs[0].id}`);
+    const catRef = db.doc(`${collectionId}/${catSnap.docs[0].id}`);
 
     // get cat query and update it
-    const catsQuery = db.collection(colId).where('parent', '==', _category);
+    const catsQuery = db.collection(collectionId).where('parent', '==', _category);
     console.log('Updating subcategory count on ', _category, ' doc');
     await queryCounter(change, context, catsQuery, catRef, counter);
 

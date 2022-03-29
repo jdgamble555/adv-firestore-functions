@@ -33,7 +33,7 @@ export async function tagIndex(
   allTagsName = '_all',
   maxNumTags = 100,
 ) {
-  const colId = getCollection(context);
+  const collectionId = getCollection(context);
 
   let tags = getValue(change, field) ?? [];
   const after = getAfter(change, field) ?? [];
@@ -62,7 +62,7 @@ export async function tagIndex(
     }
 
     // queries
-    const queryRef = db.collection(colId).where(field, 'array-contains', `${_tag}`);
+    const queryRef = db.collection(collectionId).where(field, 'array-contains', `${_tag}`);
     const tagRef = db.doc(`${tagCol}/${_tag}`);
 
     // update tag counts on tags

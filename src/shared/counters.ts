@@ -44,7 +44,7 @@ export async function colCounter(
 
   const parentDoc = `${countersCol}/${parentCol ?? ''}`;
   const countDoc = isSubCol
-    ? `${parentDoc}/${context.params.docId as string}/${context.params.subColId as string}`
+    ? `${parentDoc}/${context.params.docId as string}/${context.params.subCollectionId as string}`
     : `${parentDoc}`;
 
   // collection references
@@ -105,10 +105,10 @@ export async function queryCounter<T extends DocumentRecord<string, unknown>>(
     return null;
   }
   // collection name
-  const colId = context.resource.name.split('/')[5];
+  const collectionId = context.resource.name.split('/')[5];
 
   if (!countName || countName.length === 0) {
-    countName = colId + 'Count';
+    countName = collectionId + 'Count';
   }
   console.log('Updating ', countName, ' counter on ', countRef.path);
 
@@ -210,8 +210,8 @@ export async function conditionCounter(
   }
 
   // collection name
-  const colId = context.resource.name.split('/')[5];
-  const countDoc = `${countersCol}/${colId}`;
+  const collectionId = context.resource.name.split('/')[5];
+  const countDoc = `${countersCol}/${collectionId}`;
 
   const _countName = countName ? countName : fieldString + 'Count';
 
@@ -240,7 +240,7 @@ export async function conditionCounter(
     return db
       .runTransaction(async (t) => {
         // update size
-        const queryRef = db.collection(colId).where(field, operator as FirebaseFirestore.WhereFilterOp, value);
+        const queryRef = db.collection(collectionId).where(field, operator as FirebaseFirestore.WhereFilterOp, value);
         const colSnap = await t.get(queryRef);
         return t.set(countRef, { [_countName]: colSnap.size }, { merge: true });
       })

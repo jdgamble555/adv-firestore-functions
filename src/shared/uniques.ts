@@ -99,10 +99,10 @@ export async function uniqueField<T extends DocumentRecord<string, string>>(
   uniqueCol?: string,
 ) {
   // get column information
-  const colId = context.resource.name.split('/')[5];
+  const collectionId = context.resource.name.split('/')[5];
   const fkVal = context.params[fkName] as unknown;
 
-  const uniquePath = colId + '/' + field.toString();
+  const uniquePath = collectionId + '/' + field.toString();
 
   // NOTE: newField will always be something
   // get new and old field values

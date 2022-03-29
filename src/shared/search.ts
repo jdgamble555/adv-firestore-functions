@@ -70,7 +70,7 @@ export async function fullTextIndex(
     return null;
   }
   // get collection
-  const colId = context.resource.name.split('/')[5];
+  const collectionId = context.resource.name.split('/')[5];
   const { docId } = context.params as { docId?: string };
   if (typeof docId !== 'string' || docId.length < 1) {
     throw new Error('Missing doc Id');
@@ -95,7 +95,7 @@ export async function fullTextIndex(
       // see if search for id field
       const sfk = fk === 'id' ? admin.firestore.FieldPath.documentId() : fk;
 
-      const searchSnap = await db.collection(`${searchCol}/${colId}/${field}`).where(sfk, '==', fkValue).get();
+      const searchSnap = await db.collection(`${searchCol}/${collectionId}/${field}`).where(sfk, '==', fkValue).get();
       searchSnap.forEach((doc) => {
         // collect all document references
         delDocs.push(doc.ref);
@@ -145,7 +145,7 @@ export async function fullTextIndex(
           if (!phrase) {
             return;
           }
-          const searchRef = db.doc(`${searchCol}/${colId}/${field}/${phrase}${delim}${docId}`);
+          const searchRef = db.doc(`${searchCol}/${collectionId}/${field}/${phrase}${delim}${docId}`);
           const data = {} as DocumentRecord<string, string[] | DocumentRecord<string, boolean>>;
 
           // if index for array and map types
@@ -533,9 +533,9 @@ export async function relevantIndex(
     return null;
   }
   // get collection
-  const colId = context.resource.name.split('/')[5];
+  const collectionId = context.resource.name.split('/')[5];
   const { docId } = context.params as { docId?: string };
-  if (typeof colId !== 'string' || colId.length < 1) {
+  if (typeof collectionId !== 'string' || collectionId.length < 1) {
     throw new Error('Missing collection Id');
   }
 
@@ -543,7 +543,7 @@ export async function relevantIndex(
     throw new Error('Missing doc Id');
   }
 
-  const searchRef = db.doc(`${searchCol}/${colId}/${combinedCol}/${docId}`);
+  const searchRef = db.doc(`${searchCol}/${collectionId}/${combinedCol}/${docId}`);
 
   if (typeof fields === 'string') {
     fields = [fields];
@@ -555,7 +555,7 @@ export async function relevantIndex(
       await searchRef.delete();
     } else {
       for (const field of fields) {
-        const searchRefF = db.doc(`${searchCol}/${colId}/${field}/${docId}`);
+        const searchRefF = db.doc(`${searchCol}/${collectionId}/${field}/${docId}`);
         await searchRefF.delete();
       }
     }
@@ -621,8 +621,8 @@ export async function relevantIndex(
       // index individual field
       if (!combine) {
         data[termField] = m;
-        console.log('Creating relevant index on ', field, ' field for ', colId + '/' + docId);
-        const searchRefF = db.doc(`${searchCol}/${colId}/${field}/${docId}`);
+        console.log('Creating relevant index on ', field, ' field for ', collectionId + '/' + docId);
+        const searchRefF = db.doc(`${searchCol}/${collectionId}/${field}/${docId}`);
         await searchRefF.set(data).catch((e) => {
           console.log(e);
         });
@@ -632,7 +632,7 @@ export async function relevantIndex(
     }
     if (combine) {
       data[termField] = m;
-      console.log('Saving new relevant index for ', colId + '/' + docId);
+      console.log('Saving new relevant index for ', collectionId + '/' + docId);
       await searchRef.set(data).catch((e) => {
         console.log(e);
       });
@@ -670,12 +670,12 @@ export async function trigramIndex(
     return null;
   }
   // get collection
-  const colId = context.resource.name.split('/')[5];
+  const collectionId = context.resource.name.split('/')[5];
   const { docId } = context.params as { docId?: string };
   if (typeof docId !== 'string' || docId.length < 1) {
     throw new Error('Missing doc Id');
   }
-  const trigramRef = db.doc(`${trigramCol}/${colId}/${combinedCol}/${docId}`);
+  const trigramRef = db.doc(`${trigramCol}/${collectionId}/${combinedCol}/${docId}`);
 
   // delete
   if (deleteDoc(change)) {
@@ -683,7 +683,7 @@ export async function trigramIndex(
       await trigramRef.delete();
     } else {
       for (const field of fields) {
-        const trigramRefF = db.doc(`${trigramCol}/${colId}/${field}/${docId}`);
+        const trigramRefF = db.doc(`${trigramCol}/${collectionId}/${field}/${docId}`);
         await trigramRefF.delete();
       }
     }
@@ -717,8 +717,8 @@ export async function trigramIndex(
       // index individual field
       if (!combine) {
         data[termField] = m;
-        console.log('Creating trigram index on ', field, ' field for ', colId + '/' + docId);
-        const searchRefF = db.doc(`${trigramCol}/${colId}/${field}/${docId}`);
+        console.log('Creating trigram index on ', field, ' field for ', collectionId + '/' + docId);
+        const searchRefF = db.doc(`${trigramCol}/${collectionId}/${field}/${docId}`);
         await searchRefF.set(data).catch((e) => {
           console.log(e);
         });
@@ -729,7 +729,7 @@ export async function trigramIndex(
     }
     if (combine) {
       data[termField] = m;
-      console.log('Saving new trigram index for ', colId + '/' + docId);
+      console.log('Saving new trigram index for ', collectionId + '/' + docId);
       await trigramRef.set(data).catch((e) => {
         console.log(e);
       });

@@ -164,11 +164,11 @@ export async function aggregateData<T extends DocumentRecord<string, unknown>>(
 
   // collection name and doc id
   const cols = context.resource.name.split('/');
-  const colId = cols[cols.length - 2];
+  const collectionId = cols[cols.length - 2];
   const docId = cols[cols.length - 1];
 
   if (!aggregateField) {
-    aggregateField = colId + 'Aggregate';
+    aggregateField = collectionId + 'Aggregate';
   }
   data[aggregateField] = [] as T[keyof T];
 
@@ -212,7 +212,7 @@ export async function aggregateData<T extends DocumentRecord<string, unknown>>(
       dataValue.push(d);
     }
   });
-  console.log('Aggregating ', colId, ' data on ', targetRef.path);
+  console.log('Aggregating ', collectionId, ' data on ', targetRef.path);
   // add aggregate information
   await targetRef.set(data, { merge: true }).catch((e: Error) => {
     console.log(e);
