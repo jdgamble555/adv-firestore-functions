@@ -412,7 +412,7 @@ export async function initRelevantIndex(
     filterFunc,
   }: RelevantIndexOptions,
 ) {
-  const searchRef = db.doc(`${searchCol}/${collectionId}/${combinedCol}/${docId}`);
+  const searchRef = db.doc(`${searchCol}/${collectionId}/${combinedCol}/${docId}`.replace(/([^:]\/)\/+/g, '$1'));
 
   if (typeof fields === 'string') {
     fields = [fields];
