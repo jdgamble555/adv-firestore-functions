@@ -1,6 +1,6 @@
 {
   "name": "@tusk-legacy/adv-firestore-functions",
-  "version": "2.0.11",
+  "version": "2.0.12",
   "description": "Advanced Firestore Functions tools and indexing",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

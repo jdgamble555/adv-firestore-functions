@@ -19,21 +19,23 @@ import { htmlToText } from 'html-to-text';
 
 type RelevantSearchOptions = {
   query: string;
-  col: string;
-  fields: string | string[];
-  searchCol: string;
-  termField: string;
+  rootCollectionPath?: string;
+  collectionToSearch: string;
+  fieldsToSearch?: string[];
+  searchCollectionName?: string;
+  termField?: string;
   filterFunc?: (value: string) => string;
   limit?: number;
   startId?: string;
 };
 
 type RelevantIndexOptions = {
-  fields: string | string[];
-  searchCol?: string;
+  fieldsToIndex: string[];
+  rootCollectionPath?: string;
+  searchCollectionName?: string;
   numWords?: number;
-  combine?: boolean;
-  combinedCol?: string;
+  mergeFields?: boolean;
+  mergedCollection?: string;
   termField?: string;
   filterFunc?: (value: string) => string;
 };
@@ -194,9 +196,10 @@ export async function fullTextIndex(
  */
 export async function relevantSearch({
   query,
-  col,
-  fields = ['_all'],
-  searchCol = '_search',
+  rootCollectionPath,
+  collectionToSearch,
+  fieldsToSearch = ['_merged'],
+  searchCollectionName = '_search',
   termField = '_term',
   filterFunc,
   limit,
@@ -211,24 +214,26 @@ export async function relevantSearch({
           .join(' ')
       : query;
 
-  if (typeof fields === 'string') {
-    fields = [fields];
-  }
+  const collectionToSearchDocument = db.doc(
+    `${rootCollectionPath ?? ''}/${searchCollectionName}/${collectionToSearch}`,
+  );
+  const mergedCollection = collectionToSearchDocument.collection('_merged');
 
-  if (fields[0] === '_all') {
-    // if start id
-    const start = startId ? db.doc(`${searchCol}/${col}/_all/${startId}`) : [];
-
-    const query = limit
-      ? db.collection(`${searchCol}/${col}/_all`).orderBy(`${termField}.${exp}`, 'desc').limit(limit).startAfter(start)
-      : db.collection(`${searchCol}/${col}/_all`).orderBy(`${termField}.${exp}`, 'desc');
+  if (fieldsToSearch.includes('_merged')) {
+    let query = mergedCollection.orderBy(`${termField}.${exp}`, 'desc');
+    if (limit) {
+      query = query.limit(limit);
+    }
+    if (startId) {
+      query.startAfter(mergedCollection.doc(`${startId}`));
+    }
 
     // return results
     const docsSnap = await query.get();
 
     return docsSnap.docs.map((doc) => {
       const { _term } = doc.data() as { _term?: DocumentRecord<string, number> };
-      const id = doc.id;
+      const { id } = doc;
       const relevance = _term?.[exp] as number;
       return { id, relevance } as RelevantSearchResult;
     });
@@ -236,10 +241,11 @@ export async function relevantSearch({
 
   // get queries for each field
   const s = [];
-  for (const field of fields) {
-    const query = limit
-      ? db.collection(`${searchCol}/${col}/${field}`).orderBy(`${termField}.${exp}`, 'desc').limit(limit)
-      : db.collection(`${searchCol}/${col}/${field}`).orderBy(`${termField}.${exp}`, 'desc');
+  for (const field of fieldsToSearch) {
+    let query = collectionToSearchDocument.collection(field).orderBy(`${termField}.${exp}`, 'desc');
+    if (limit) {
+      query = query.limit(limit);
+    }
     s.push(query.get());
   }
   const docsSnaps = await Promise.all(s);
@@ -400,104 +406,102 @@ export async function trigramSearch({
 }
 
 export async function initRelevantIndex(
-  collectionId: string,
+  collectionToIndex: string,
   docId: string,
   {
-    fields,
-    searchCol = '_search',
+    fieldsToIndex,
+    rootCollectionPath = '',
+    searchCollectionName = '_search',
     numWords = 6,
-    combine = true,
-    combinedCol = '_all',
+    mergeFields = true,
+    mergedCollection = '_merged',
     termField = '_term',
     filterFunc,
   }: RelevantIndexOptions,
 ) {
-  const searchRef = db.doc(`${searchCol}/${collectionId}/${combinedCol}/${docId}`.replace(/([^:]\/)\/+/g, '$1'));
-
-  if (typeof fields === 'string') {
-    fields = [fields];
-  }
+  // Document to store data about the collection we want to index for searching
+  const collectionToIndexDocument = db.doc(`${rootCollectionPath}/${searchCollectionName}/${collectionToIndex}`);
 
   // create or update
-  if (true) {
-    const data = {} as DocumentRecord<string, string | DocumentRecord<string, number>>;
-    let m = {} as DocumentRecord<string, number>;
+  const data = {} as DocumentRecord<string, string | DocumentRecord<string, number>>;
+  let m = {} as DocumentRecord<string, number>;
 
-    const docData = (await db.doc(`${collectionId}/${docId}`).get()).data();
+  const docData = (await db.doc(`${rootCollectionPath}/${collectionToIndex}/${docId}`).get()).data();
 
-    // go through each field to index
-    for (const field of fields) {
-      // new indexes
-      let fieldValue = docData?.[field] as string;
+  // go through each field to index
+  for (const field of fieldsToIndex) {
+    // new indexes
+    let fieldValue = docData?.[field] as string | string[];
 
-      // if array, turn into string
-      if (Array.isArray(fieldValue)) {
-        fieldValue = fieldValue.join(' ');
+    // if array, turn into string
+    if (Array.isArray(fieldValue)) {
+      fieldValue = fieldValue.join(' ');
+    }
+
+    if (fieldValue === null || fieldValue === undefined || fieldValue.length === 0) {
+      return;
+    }
+
+    let index = createIndex(fieldValue, numWords);
+
+    // if filter function, run function on each word
+    if (filterFunc) {
+      const temp = [];
+      for (const i of index) {
+        temp.push(
+          i
+            .split(' ')
+            .map((v: string) => filterFunc(v))
+            .join(' '),
+        );
       }
-
-      if (fieldValue === null || fieldValue === undefined || fieldValue.length === 0) {
-        return;
-      }
-
-      let index = createIndex(fieldValue, numWords);
-
-      // if filter function, run function on each word
-      if (filterFunc) {
-        const temp = [];
-        for (const i of index) {
-          temp.push(
-            i
-              .split(' ')
-              .map((v: string) => filterFunc(v))
-              .join(' '),
-          );
-        }
-        index = temp;
-        for (const phrase of index) {
-          if (phrase) {
-            let v = '';
-            const t = phrase.split(' ');
-            while (t.length > 0) {
-              const r = t.shift() ?? '';
-              v += v ? ' ' + r : r;
-              // increment for relevance
-              m[v] = m[v] ?? 0 + 1;
-            }
-          }
-        }
-      } else {
-        for (const phrase of index) {
-          if (phrase) {
-            let v = '';
-            for (let i = 0; i < phrase.length; i++) {
-              v = phrase.slice(0, i + 1);
-              // increment for relevance
-              m[v] = m[v] ?? 0 + 1;
-            }
+      index = temp;
+      for (const phrase of index) {
+        if (phrase) {
+          let v = '';
+          const t = phrase.split(' ');
+          while (t.length > 0) {
+            const r = t.shift() ?? '';
+            v += v ? ' ' + r : r;
+            // increment for relevance
+            m[v] = m[v] ?? 0 + 1;
           }
         }
       }
-
-      // index individual field
-      if (!combine) {
-        data[termField] = m;
-        console.log('Creating relevant index on ', field, ' field for ', collectionId + '/' + docId);
-        const searchRefF = db.doc(`${searchCol}/${collectionId}/${field}/${docId}`);
-        await searchRefF.set(data).catch((e) => {
-          console.log(e);
-        });
-        // clear index history
-        m = {};
+    } else {
+      for (const phrase of index) {
+        if (phrase) {
+          let v = '';
+          for (let i = 0; i < phrase.length; i++) {
+            v = phrase.slice(0, i + 1);
+            // increment for relevance
+            m[v] = m[v] ?? 0 + 1;
+          }
+        }
       }
     }
-    if (combine) {
+
+    // index individual field
+    if (!mergeFields) {
       data[termField] = m;
-      console.log('Saving new relevant index for ', collectionId + '/' + docId);
-      await searchRef.set(data).catch((e) => {
+      console.log('Creating relevant index on ', field, ' field for ', collectionToIndex + '/' + docId);
+      const searchRefF = collectionToIndexDocument.collection(field).doc(docId);
+      await searchRefF.set(data).catch((e) => {
         console.log(e);
       });
+      // clear index history
+      m = {};
     }
   }
+  if (mergeFields) {
+    data[termField] = m;
+    console.log('Saving new relevant index for ', collectionToIndex + '/' + docId);
+    const searchRef = collectionToIndexDocument.collection(mergedCollection).doc(docId);
+    await searchRef.set(data).catch((e) => {
+      console.log(e);
+    });
+  }
+
   return null;
 }
 
@@ -519,11 +523,12 @@ export async function relevantIndex(
   change: functions.Change<DocumentSnapshot<DocumentRecord<string, string>>>,
   context: functions.EventContext,
   {
-    fields,
-    searchCol = '_search',
+    fieldsToIndex,
+    rootCollectionPath = '',
+    searchCollectionName = '_search',
     numWords = 6,
-    combine = true,
-    combinedCol = '_all',
+    mergeFields = true,
+    mergedCollection = '_merged',
     termField = '_term',
     filterFunc,
   }: RelevantIndexOptions,
@@ -533,9 +538,9 @@ export async function relevantIndex(
     return null;
   }
   // get collection
-  const collectionId = context.resource.name.split('/')[5];
+  const collectionToIndex = context.resource.name.split('/')[5];
   const { docId } = context.params as { docId?: string };
-  if (typeof collectionId !== 'string' || collectionId.length < 1) {
+  if (typeof collectionToIndex !== 'string' || collectionToIndex.length < 1) {
     throw new Error('Missing collection Id');
   }
 
@@ -543,19 +548,16 @@ export async function relevantIndex(
     throw new Error('Missing doc Id');
   }
 
-  const searchRef = db.doc(`${searchCol}/${collectionId}/${combinedCol}/${docId}`);
-
-  if (typeof fields === 'string') {
-    fields = [fields];
-  }
+  const collectionToIndexDocument = db.doc(`${rootCollectionPath}/${searchCollectionName}/${collectionToIndex}`);
+  const searchRef = collectionToIndexDocument.collection(mergedCollection).doc(docId);
 
   // delete
   if (deleteDoc(change)) {
-    if (combine) {
+    if (mergeFields) {
       await searchRef.delete();
     } else {
-      for (const field of fields) {
-        const searchRefF = db.doc(`${searchCol}/${collectionId}/${field}/${docId}`);
+      for (const field of fieldsToIndex) {
+        const searchRefF = collectionToIndexDocument.collection(field).doc(docId);
         await searchRefF.delete();
       }
     }
@@ -566,7 +568,7 @@ export async function relevantIndex(
     let m = {} as DocumentRecord<string, number>;
 
     // go through each field to index
-    for (const field of fields) {
+    for (const field of fieldsToIndex) {
       // new indexes
       let fieldValue = getAfter(change, field);
 
@@ -619,10 +621,10 @@ export async function relevantIndex(
       }
 
       // index individual field
-      if (!combine) {
+      if (!mergeFields) {
         data[termField] = m;
-        console.log('Creating relevant index on ', field, ' field for ', collectionId + '/' + docId);
-        const searchRefF = db.doc(`${searchCol}/${collectionId}/${field}/${docId}`);
+        console.log('Creating relevant index on ', field, ' field for ', collectionToIndex + '/' + docId);
+        const searchRefF = collectionToIndexDocument.collection(field).doc(docId);
         await searchRefF.set(data).catch((e) => {
           console.log(e);
         });
@@ -630,9 +632,9 @@ export async function relevantIndex(
         m = {};
       }
     }
-    if (combine) {
+    if (mergeFields) {
       data[termField] = m;
-      console.log('Saving new relevant index for ', collectionId + '/' + docId);
+      console.log('Saving new relevant index for ', collectionToIndex + '/' + docId);
       await searchRef.set(data).catch((e) => {
         console.log(e);
       });
