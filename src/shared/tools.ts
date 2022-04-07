@@ -331,7 +331,7 @@ export function getCatArray(category: string): string[] {
  * @param change
  * @param fk
  */
-export function fkChange(change: functions.Change<DocumentSnapshot>, fk: string | string[]) {
+export function foreignKeyChange(change: functions.Change<DocumentSnapshot>, fk: string | string[]) {
   // simplify input data
   const after = change.after.data();
   const before = change.before.data();

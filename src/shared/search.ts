@@ -7,7 +7,7 @@ import {
   popDoc,
   deleteDoc,
   valueChange,
-  fkChange,
+  foreignKeyChange,
   getValue,
   writeDoc,
   createDoc,
@@ -16,6 +16,24 @@ import {
 } from './tools';
 import { DocumentRecord } from './types';
 import { htmlToText } from 'html-to-text';
+
+// DEFAULTS
+const DELIM = '__';
+const _SEARCH = '_search';
+const _MERGED = '_merged';
+const _TERM = '_term';
+const _TRIGRAMS = '_trigrams';
+/**
+ * Extract collection name from firestore path
+ * @param context event context
+ * @param path full path to collection or document
+ * @returns a string with just the collection name (no '/')
+ */
+function extractCollectionNameFromPath({ resource: { name } }: functions.EventContext, path = '') {
+  return name.slice(name.indexOf(path) + path.length).split('/')[1]; // path starts with / so [0] is empty string
+}
+
+// TYPES
 
 type RelevantSearchOptions = {
   query: string;
@@ -35,12 +53,31 @@ type RelevantIndexOptions = {
   searchCollectionName?: string;
   numWords?: number;
   mergeFields?: boolean;
-  mergedCollection?: string;
+  mergedCollectionName?: string;
   termField?: string;
   filterFunc?: (value: string) => string;
 };
 
-type RelevantSearchResult = { id: string; relevance: number };
+type SearchResult = { id: string; relevance: number };
+
+type TrigramSearchOptions = {
+  query: string;
+  rootCollectionPath?: string;
+  collectionToSearch: string;
+  fieldsToSearch?: string[];
+  searchCollectionName?: string;
+  termField?: string;
+  limit?: number;
+};
+
+type TrigramIndexOptions = {
+  rootCollectionPath?: string;
+  trigramCollectionName?: string;
+  mergedCollectionName?: string;
+  mergeFields?: boolean;
+  termField?: string;
+  fieldsToIndex: string[];
+};
 
 try {
   admin.initializeApp();
@@ -48,56 +85,65 @@ try {
   /* empty */
 }
 const db = admin.firestore();
+
 /**
  * Full Text Search
  * @param change - functions change interface
  * @param context - event context
- * @param field - the field to index
- * @param fk - the foreign key fields to get
+ * @param fieldToIndex - the field to index
+ * @param foreignKey - the foreign key fields to get
  * @param type - { id, map, array } - defaults to id
- * @param n - number of word chunks to index at a time
- * @param searchCol - name of search collection
+ * @param numChunks - number of word chunks to index at a time
+ * @param searchCollectionName - name of search collection
  */
 export async function fullTextIndex(
   change: functions.Change<DocumentSnapshot<DocumentRecord<string, string>>>,
   context: functions.EventContext,
-  field: string,
-  fk = 'id',
+  fieldToIndex: string,
+  foreignKey = 'id',
   type = 'id',
-  n = 6,
-  searchCol = '_search',
+  numChunks = 6,
+  searchCollectionName = _SEARCH,
+  rootCollectionPath = '',
+  contextParamsKey = 'docId',
 ) {
   // don't run if repeated function
   if (await eventExists(context)) {
     return null;
   }
   // get collection
-  const collectionId = context.resource.name.split('/')[5];
-  const { docId } = context.params as { docId?: string };
+  const collectionToIndex = extractCollectionNameFromPath(context, rootCollectionPath);
+  const {
+    params: { [contextParamsKey]: docId },
+  } = context;
+
+  if (typeof collectionToIndex !== 'string' || collectionToIndex.length < 1) {
+    throw new Error('Missing collection Id');
+  }
+
   if (typeof docId !== 'string' || docId.length < 1) {
     throw new Error('Missing doc Id');
   }
 
-  // delimter
-  const delim = '__';
-
-  // term field for maps and arrays
-  const termName = '_terms';
+  const collectionToIndexDocument = db.doc(`${rootCollectionPath}/${searchCollectionName}/${collectionToIndex}`);
 
   // update or delete
   if (popDoc(change)) {
     // if deleting doc, field change, or foreign key change
-    if (deleteDoc(change) || valueChange(change, field) || fkChange(change, fk)) {
+    if (deleteDoc(change) || valueChange(change, fieldToIndex) || foreignKeyChange(change, foreignKey)) {
       // get old key to delete
-      const fkValue = getValue(change, fk);
+      const foreignKeyValue = getValue(change, foreignKey);
 
       // remove old indexes
       const delDocs: FirebaseFirestore.DocumentReference[] = [];
 
       // see if search for id field
-      const sfk = fk === 'id' ? admin.firestore.FieldPath.documentId() : fk;
+      const sForeignKey = foreignKey === 'id' ? admin.firestore.FieldPath.documentId() : foreignKey;
 
-      const searchSnap = await db.collection(`${searchCol}/${collectionId}/${field}`).where(sfk, '==', fkValue).get();
+      const searchSnap = await collectionToIndexDocument
+        .collection(fieldToIndex)
+        .where(sForeignKey, '==', foreignKeyValue)
+        .get();
       searchSnap.forEach((doc) => {
         // collect all document references
         delDocs.push(doc.ref);
@@ -110,44 +156,44 @@ export async function fullTextIndex(
   // create or update
   if (writeDoc(change)) {
     // if creating a doc, field change, or foreign key change
-    if (createDoc(change) || valueChange(change, field) || fkChange(change, fk)) {
+    if (createDoc(change) || valueChange(change, fieldToIndex) || foreignKeyChange(change, foreignKey)) {
       // add new foreign key field(s)
       // TODO: This doesn't seem right? getValue not really setup to deal with arrays
-      const fkeys = {} as DocumentRecord<string, string>;
+      const foreignKeys = {} as DocumentRecord<string, string>;
       // if (Array.isArray(fk)) {
       //   fk.forEach((k) => {
       //     fkeys[k] = getValue(change, k);
       //   });
       // } else {
-      fkeys[fk] = getValue(change, fk);
+      foreignKeys[foreignKey] = getValue(change, foreignKey);
       // }
       // new indexes
-      const fieldValue = getAfter(change, field);
+      const fieldValue = getAfter(change, fieldToIndex);
 
       if (fieldValue === null || fieldValue === undefined) {
         return;
       }
 
-      // TODO: not an array
+      // TODO: not an array, should we just remove?
       // if array, turn into string
       // if (Array.isArray(fieldValue)) {
       //   fieldValue = fieldValue.join(' ');
       // }
 
-      console.log('Generating index array on ', field, ' field');
-      const index = createIndex(fieldValue, n);
+      console.log('Generating index array on ', fieldToIndex, ' field');
+      const index = createIndex(fieldValue, numChunks);
       const numDocs = index.length;
 
       // chunk index array at 100 items
       const chunks = new ArrayChunk(index);
-      chunks.forEachChunk(async (ch) => {
+      chunks.forEachChunk(async (chunk) => {
         const batch = db.batch();
         // create the docs in batches
-        ch.forEach((phrase: string) => {
+        chunk.forEach((phrase) => {
           if (!phrase) {
             return;
           }
-          const searchRef = db.doc(`${searchCol}/${collectionId}/${field}/${phrase}${delim}${docId}`);
+          const searchRef = collectionToIndexDocument.collection(fieldToIndex).doc(`${phrase}${DELIM}${docId}`);
           const data = {} as DocumentRecord<string, string[] | DocumentRecord<string, boolean>>;
 
           // if index for array and map types
@@ -165,16 +211,16 @@ export async function fullTextIndex(
                 a.push(v);
               }
             }
-            data[termName] = type === 'map' ? m : a;
+            data[_TERM] = type === 'map' ? m : a;
           }
-          batch.set(searchRef, { ...fkeys, ...data }, { merge: true });
+          batch.set(searchRef, { ...foreignKeys, ...data }, { merge: true });
         });
-        console.log('Creating batch of docs on ', field, ' field');
+        console.log('Creating batch of docs on ', fieldToIndex, ' field');
         await batch.commit().catch((e) => {
           console.log(e);
         });
       });
-      console.log('Finished creating ', numDocs, ' docs on ', field, ' field');
+      console.log('Finished creating ', numDocs, ' docs on ', fieldToIndex, ' field');
     }
   }
   return null;
@@ -183,9 +229,10 @@ export async function fullTextIndex(
  * Relevant search callable function
  * @param _opts {
  *   query - query to search
- *   col - collection to search
- *   fields - fields to search
- *   searchCol - name of search collection, default _search
+ *   rootCollectionPath - path to root of search to keep users separate
+ *   collectionToSearch - collection to search
+ *   fieldsToSearch - fields to search
+ *   searchCollectionName - name of search collection, default _search
  *   termField - name of term field to search, default _term
  *   filterFunc - name of function to filter
  *   limit - number of search results to limit, default 10
@@ -198,13 +245,13 @@ export async function relevantSearch({
   query,
   rootCollectionPath,
   collectionToSearch,
-  fieldsToSearch = ['_merged'],
-  searchCollectionName = '_search',
-  termField = '_term',
+  fieldsToSearch = [_MERGED],
+  searchCollectionName = _SEARCH,
+  termField = _TERM,
   filterFunc,
   limit,
   startId,
-}: RelevantSearchOptions): Promise<RelevantSearchResult[]> {
+}: RelevantSearchOptions): Promise<SearchResult[]> {
   // if soundex function or other filter
   const exp =
     filterFunc !== undefined
@@ -235,7 +282,7 @@ export async function relevantSearch({
       const { _term } = doc.data() as { _term?: DocumentRecord<string, number> };
       const { id } = doc;
       const relevance = _term?.[exp] as number;
-      return { id, relevance } as RelevantSearchResult;
+      return { id, relevance } as SearchResult;
     });
   }
 
@@ -260,7 +307,7 @@ export async function relevantSearch({
         const { _term } = doc.data() as { _term?: DocumentRecord<string, number> };
         const id = doc.id;
         const relevance = _term?.[exp] as number;
-        return { id, relevance } as RelevantSearchResult;
+        return { id, relevance } as SearchResult;
       });
     })
     .flat()
@@ -293,34 +340,23 @@ export async function relevantSearch({
  * Trigram Search callable function
  * @param _opts {
  *   query - query to search
- *   col - collection to search
- *   fields - fields to search
- *   searchCol - name of search collection, default _search
+ *   collectionToSearch - collection to search
+ *   fieldsToSearch - fields to search
+ *   searchCollectionName - name of search collection, default _search
  *   termField - name of term field to search, default _term
  *   limit - number of search results to limit, default 10
  * }
  * @retuns - will return a sorted array of docs with {id, relevance}
  *   the higher the relevance, the better match it is...
  */
-type TrigramSearchOptions = {
-  query: string;
-  col: string;
-  fields?: string[];
-  searchCol?: string;
-  termField?: string;
-  limit?: number;
-};
-
-type TrigramSearchResult = { id: string; relevance: number };
-
 export async function trigramSearch({
   query,
-  col,
-  fields = ['_all'],
-  searchCol = '_trigrams',
-  termField = '_term',
+  collectionToSearch,
+  fieldsToSearch = [_MERGED],
+  searchCollectionName = _SEARCH,
+  termField = _TERM,
   limit = 10,
-}: TrigramSearchOptions): Promise<TrigramSearchResult[]> {
+}: TrigramSearchOptions): Promise<SearchResult[]> {
   // trigram function
   function tg(s1: string) {
     const n = 3;
@@ -346,10 +382,12 @@ export async function trigramSearch({
   }
 
   // go through each field
-  for (const field of fields) {
+  for (const field of fieldsToSearch) {
     // go through all searchable queries
     for (const gram of searchable) {
-      const query = db.collection(`${searchCol}/${col}/${field}`) as CollectionReference<{ relevance: number }>;
+      const query = db.collection(`${searchCollectionName}/${collectionToSearch}/${field}`) as CollectionReference<{
+        relevance: number;
+      }>;
       let newRef = query;
       for (const t of gram.s) {
         newRef = newRef.where(`${termField}.${t}`, '==', true) as CollectionReference<{ relevance: number }>;
@@ -404,18 +442,32 @@ export async function trigramSearch({
       return;
     });
 }
-
+/**
+ * indexes a collection by relevance
+ * @param collectionToIndex
+ * @param docId
+ * @param _opts: {
+ *   fieldsToIndex - array of fields to index
+ *   rootCollectionPath - root path to keep users separate
+ *   searchCollectionName - name of search collection, default _search
+ *   numWords - number of words to index at a time, default 6
+ *   mergeFields - whether or not to combine fields in one collection, default true
+ *   mergedCollection - name of combined fields collection, default _all
+ *   termField - name of terms array, default _term
+ *   filterFunc - function to filter, can pass a soundex function
+ * }
+ */
 export async function initRelevantIndex(
   collectionToIndex: string,
   docId: string,
   {
     fieldsToIndex,
     rootCollectionPath = '',
-    searchCollectionName = '_search',
+    searchCollectionName = _SEARCH,
     numWords = 6,
     mergeFields = true,
-    mergedCollection = '_merged',
-    termField = '_term',
+    mergedCollectionName = _MERGED,
+    termField = _TERM,
     filterFunc,
   }: RelevantIndexOptions,
 ) {
@@ -496,7 +548,7 @@ export async function initRelevantIndex(
   if (mergeFields) {
     data[termField] = m;
     console.log('Saving new relevant index for ', collectionToIndex + '/' + docId);
-    const searchRef = collectionToIndexDocument.collection(mergedCollection).doc(docId);
+    const searchRef = collectionToIndexDocument.collection(mergedCollectionName).doc(docId);
     await searchRef.set(data).catch((e) => {
       console.log(e);
     });
@@ -504,20 +556,21 @@ export async function initRelevantIndex(
 
   return null;
 }
-
 /**
  * indexes a collection by relevance
  * @param change
  * @param context
  * @param _opts: {
- *   fields - array of fields to index
- *   searchCol - name of search collection, default _search
+ *   fieldsToIndex - array of fields to index
+ *   rootCollectionPath - root path to keep users separate
+ *   searchCollectionName - name of search collection, default _search
  *   numWords - number of words to index at a time, default 6
- *   combine - whether or not to combine fields in one collection, default true
- *   combinedCol - name of combined fields collection, default _all
+ *   mergeFields - whether or not to combine fields in one collection, default true
+ *   mergedCollectionName - name of combined fields collection, default _all
  *   termField - name of terms array, default _term
  *   filterFunc - function to filter, can pass a soundex function
  * }
+ * @param contextParamsKey - default is docId, but should match cloud function
  */
 export async function relevantIndex(
   change: functions.Change<DocumentSnapshot<DocumentRecord<string, string>>>,
@@ -525,11 +578,11 @@ export async function relevantIndex(
   {
     fieldsToIndex,
     rootCollectionPath = '',
-    searchCollectionName = '_search',
+    searchCollectionName = _SEARCH,
     numWords = 6,
     mergeFields = true,
-    mergedCollection = '_merged',
-    termField = '_term',
+    mergedCollectionName = _MERGED,
+    termField = _TERM,
     filterFunc,
   }: RelevantIndexOptions,
   contextParamsKey = 'docId',
@@ -540,11 +593,10 @@ export async function relevantIndex(
   }
 
   const {
-    resource: { name },
     params: { [contextParamsKey]: docId },
   } = context;
   // get collection
-  const collectionToIndex = name.slice(name.indexOf(rootCollectionPath) + rootCollectionPath.length).split('/')[1];
+  const collectionToIndex = extractCollectionNameFromPath(context, rootCollectionPath);
 
   if (typeof collectionToIndex !== 'string' || collectionToIndex.length < 1) {
     throw new Error('Missing collection Id');
@@ -555,7 +607,7 @@ export async function relevantIndex(
   }
 
   const collectionToIndexDocument = db.doc(`${rootCollectionPath}/${searchCollectionName}/${collectionToIndex}`);
-  const searchRef = collectionToIndexDocument.collection(mergedCollection).doc(docId);
+  const searchRef = collectionToIndexDocument.collection(mergedCollectionName).doc(docId);
 
   // delete
   if (deleteDoc(change)) {
@@ -653,45 +705,56 @@ export async function relevantIndex(
  * @param change
  * @param context
  * @param _opts {
- *   fields - array of fields to index
- *   trigramCol - name of trigram colleciton, default _trigrams
- *   combine - whether or not to combine fields in one collection, default true
- *   combinedCol - name of combined collection, default _all
+ *   rootCollectionPath - root path to find collection to separate users
+ *   fieldsToIndex - array of fields to index
+ *   trigramCollectionName - name of trigram colleciton, default _trigrams
+ *   mergeFields - whether or not to combine fields in one collection, default true
+ *   mergedCollectionName - name of combined collection, default _all
  *   termField - name of field to store trigrams, default _term
  * }
  */
-type TrigramIndexOptions = {
-  trigramCol?: string;
-  combinedCol?: string;
-  combine?: boolean;
-  termField?: string;
-  fields: string[];
-};
-
 export async function trigramIndex(
   change: functions.Change<DocumentSnapshot<DocumentRecord<string, string>>>,
   context: functions.EventContext,
-  { trigramCol = '_trigrams', combinedCol = '_all', combine = true, termField = '_term', fields }: TrigramIndexOptions,
+  {
+    rootCollectionPath = '',
+    trigramCollectionName = _TRIGRAMS,
+    mergedCollectionName = _MERGED,
+    mergeFields = true,
+    termField = _TERM,
+    fieldsToIndex,
+  }: TrigramIndexOptions,
+  contextParamsKey = 'docId',
 ) {
   // don't run if repeated function
   if (await eventExists(context)) {
     return null;
   }
+
+  const {
+    params: { [contextParamsKey]: docId },
+  } = context;
   // get collection
-  const collectionId = context.resource.name.split('/')[5];
-  const { docId } = context.params as { docId?: string };
+  const collectionToIndex = extractCollectionNameFromPath(context, rootCollectionPath);
+
+  if (typeof collectionToIndex !== 'string' || collectionToIndex.length < 1) {
+    throw new Error('Missing collection Id');
+  }
+
   if (typeof docId !== 'string' || docId.length < 1) {
     throw new Error('Missing doc Id');
   }
-  const trigramRef = db.doc(`${trigramCol}/${collectionId}/${combinedCol}/${docId}`);
+
+  const collectionToIndexDocument = db.doc(`${rootCollectionPath}/${trigramCollectionName}/${collectionToIndex}`);
+  const trigramRef = collectionToIndexDocument.collection(mergedCollectionName).doc(docId);
 
   // delete
   if (deleteDoc(change)) {
-    if (combine) {
+    if (mergeFields) {
       await trigramRef.delete();
     } else {
-      for (const field of fields) {
-        const trigramRefF = db.doc(`${trigramCol}/${collectionId}/${field}/${docId}`);
+      for (const field of fieldsToIndex) {
+        const trigramRefF = collectionToIndexDocument.collection(field).doc(docId);
         await trigramRefF.delete();
       }
     }
@@ -702,7 +765,7 @@ export async function trigramIndex(
     let m = {} as DocumentRecord<string, boolean>;
 
     // go through each field to index
-    for (const field of fields) {
+    for (const field of fieldsToIndex) {
       // new indexes
       let fieldValue = getAfter(change, field);
 
@@ -723,10 +786,10 @@ export async function trigramIndex(
       data[`_${field}`] = index;
 
       // index individual field
-      if (!combine) {
+      if (!mergeFields) {
         data[termField] = m;
-        console.log('Creating trigram index on ', field, ' field for ', collectionId + '/' + docId);
-        const searchRefF = db.doc(`${trigramCol}/${collectionId}/${field}/${docId}`);
+        console.log('Creating trigram index on ', field, ' field for ', collectionToIndex + '/' + docId);
+        const searchRefF = collectionToIndexDocument.collection(field).doc(docId);
         await searchRefF.set(data).catch((e) => {
           console.log(e);
         });
@@ -735,9 +798,9 @@ export async function trigramIndex(
         data = {};
       }
     }
-    if (combine) {
+    if (mergeFields) {
       data[termField] = m;
-      console.log('Saving new trigram index for ', collectionId + '/' + docId);
+      console.log('Saving new trigram index for ', collectionToIndex + '/' + docId);
       await trigramRef.set(data).catch((e) => {
         console.log(e);
       });
