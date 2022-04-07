@@ -532,14 +532,20 @@ export async function relevantIndex(
     termField = '_term',
     filterFunc,
   }: RelevantIndexOptions,
+  contextParamsKey = 'docId',
 ) {
   // don't run if repeated function
   if (await eventExists(context)) {
     return null;
   }
+
+  const {
+    resource: { name },
+    params: { [contextParamsKey]: docId },
+  } = context;
   // get collection
-  const collectionToIndex = context.resource.name.split('/')[5];
-  const { docId } = context.params as { docId?: string };
+  const collectionToIndex = name.slice(name.indexOf(rootCollectionPath) + rootCollectionPath.length).split('/')[1];
+
   if (typeof collectionToIndex !== 'string' || collectionToIndex.length < 1) {
     throw new Error('Missing collection Id');
   }
