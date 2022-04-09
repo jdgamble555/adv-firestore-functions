@@ -1,5 +1,11 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { DocumentSnapshot } from 'firebase-admin/firestore';
+import { findSingleValues, updateDoc, getValue, getBefore, getAfter, getCollection } from './tools';
+import { DocumentRecord } from './types';
+import { aggregateData } from './joins';
+import { queryCounter } from './counters';
+
 try {
   admin.initializeApp();
 } catch (e) {
@@ -18,28 +24,26 @@ const db = admin.firestore();
  * @param maxNumTags - the maximum number of tags to put in a doc, default is 100
  */
 export async function tagIndex(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot<DocumentRecord<string, string[]>>>,
   context: functions.EventContext,
   field = 'tags',
   tagCol = '_tags',
   createAllTags = true,
   aggregateField = '',
   allTagsName = '_all',
-  maxNumTags = 100
+  maxNumTags = 100,
 ) {
-  const { findSingleValues, updateDoc, getValue, getBefore, getAfter, getCollection } = require('./tools');
-  const { queryCounter } = require('./counters');
+  const collectionId = getCollection(context);
 
-  const colId = getCollection(context);
-
-  let tags = getValue(change, field);
+  let tags = getValue(change, field) ?? [];
+  const after = getAfter(change, field) ?? [];
 
   if (updateDoc(change)) {
     // get only changed tags
-    tags = findSingleValues(getBefore(change, field), getAfter(change, field));
+    tags = findSingleValues(getBefore(change, field) ?? [], after);
   }
 
-  const queries: Promise<FirebaseFirestore.WriteResult | null>[] = [];
+  const queries: Promise<void | FirebaseFirestore.WriteResult | FirebaseFirestore.Transaction | null>[] = [];
 
   // go through each changed tag
   for (const tag of tags) {
@@ -50,15 +54,15 @@ export async function tagIndex(
       .replace(/[^\w ]+/g, '');
 
     // delete or add tag
-    const n = getAfter(change, field).includes(_tag) ? 1 : -1;
+    const n = after.includes(_tag) ? 1 : -1;
     if (n === 1) {
-      console.log('added')
+      console.log('added');
     } else {
-      console.log('deleted')
+      console.log('deleted');
     }
 
     // queries
-    const queryRef = db.collection(colId).where(field, 'array-contains', `${_tag}`);
+    const queryRef = db.collection(collectionId).where(field, 'array-contains', `${_tag}`);
     const tagRef = db.doc(`${tagCol}/${_tag}`);
 
     // update tag counts on tags
@@ -72,11 +76,10 @@ export async function tagIndex(
     if (!aggregateField) {
       aggregateField = tagCol + 'Aggregate';
     }
-    const { aggregateData } = require('./joins');
+
     const tagRef = db.collection(tagCol).doc(allTagsName);
     // get all tags except aggregation tag
-    const tagQueryRef = db.collection(tagCol)
-      .where(admin.firestore.FieldPath.documentId(), '!=', allTagsName);
+    const tagQueryRef = db.collection(tagCol).where(admin.firestore.FieldPath.documentId(), '!=', allTagsName);
     await aggregateData(change, context, tagRef, tagQueryRef, undefined, aggregateField, maxNumTags, undefined, true);
   }
   return null;

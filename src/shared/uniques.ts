@@ -1,5 +1,8 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { getBefore, createDoc, updateDoc, deleteDoc, getFriendlyURL } from './tools';
+import { DocumentSnapshot } from 'firebase-admin/firestore';
+import { DocumentRecord } from './types';
 try {
   admin.initializeApp();
 } catch (e) {
@@ -14,17 +17,17 @@ const db = admin.firestore();
  * @param fkVal - foreign key value
  * @param uniqueCol - unique collection
  */
-export async function createField(
+export async function createField<T extends DocumentRecord<string, unknown>>(
   colPath: string,
-  field: string,
+  field: keyof T,
   fkName: string,
-  fkVal: string,
+  fkVal: unknown,
   uniqueCol = '_uniques',
-): Promise<any> {
+) {
   console.log('Creating unique index on ', field);
 
-  const titleRef = db.doc(`${uniqueCol}/${colPath}/${field}`);
-  return titleRef.set({ [fkName]: fkVal }).catch((e: any) => {
+  const titleRef = db.doc(`${uniqueCol}/${colPath}/${field.toString()}`);
+  return titleRef.set({ [fkName]: fkVal }).catch((e: Error) => {
     console.log(e);
   });
 }
@@ -34,11 +37,15 @@ export async function createField(
  * @param field - field value
  * @param uniqueCol - unique collection
  */
-export async function deleteField(colPath: string, field: string, uniqueCol = '_uniques'): Promise<any> {
+export async function deleteField<T extends DocumentRecord<string, unknown>>(
+  colPath: string,
+  field: keyof T,
+  uniqueCol = '_uniques',
+) {
   console.log('Deleting unique index on ', field);
 
-  const titleRef = db.doc(`${uniqueCol}/${colPath}/${field}`);
-  return titleRef.delete().catch((e: any) => {
+  const titleRef = db.doc(`${uniqueCol}/${colPath}/${field.toString()}`);
+  return titleRef.delete().catch((e: Error) => {
     console.log(e);
   });
 }
@@ -51,24 +58,24 @@ export async function deleteField(colPath: string, field: string, uniqueCol = '_
  * @param fkVal - foreign key value
  * @param uniqueCol - unique collectino
  */
-export async function updateField(
+export async function updateField<T extends DocumentRecord<string, unknown>>(
   colPath: string,
-  oldField: string,
-  newField: string,
+  oldField: keyof T,
+  newField: keyof T,
   fkName: string,
-  fkVal: string,
+  fkVal: unknown,
   uniqueCol = '_uniques',
-): Promise<any> {
+) {
   console.log('Changing unique index from ', oldField, ' to ', newField);
 
-  const oldTitleRef = db.doc(`${uniqueCol}/${colPath}/${oldField}`);
-  const newTitleRef = db.doc(`${uniqueCol}/${colPath}/${newField}`);
+  const oldTitleRef = db.doc(`${uniqueCol}/${colPath}/${oldField.toString()}`);
+  const newTitleRef = db.doc(`${uniqueCol}/${colPath}/${newField.toString()}`);
   const batch = db.batch();
 
   batch.delete(oldTitleRef);
   batch.create(newTitleRef, { [fkName]: fkVal });
 
-  return batch.commit().catch((e: any) => {
+  return batch.commit().catch((e: Error) => {
     console.log(e);
   });
 }
@@ -82,32 +89,31 @@ export async function updateField(
  * @param fkName - name of foreign key field
  * @param uniqueCol - name of unique collection
  */
-export async function uniqueField(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+export async function uniqueField<T extends DocumentRecord<string, string>>(
+  change: functions.Change<DocumentSnapshot<T>>,
   context: functions.EventContext,
-  field: string,
+  field: keyof T,
   friendly = false,
-  newField = '',
+  newField: keyof T = '',
   fkName = 'docId',
   uniqueCol?: string,
 ) {
   // get column information
-  const colId = context.resource.name.split('/')[5];
-  const fkVal = context.params[fkName];
+  const collectionId = context.resource.name.split('/')[5];
+  const fkVal = context.params[fkName] as unknown;
 
-  const uniquePath = colId + '/' + field;
+  const uniquePath = collectionId + '/' + field.toString();
 
-  const { getAfter, getBefore, createDoc, updateDoc, deleteDoc, getFriendlyURL } = require('./tools');
-
+  // NOTE: newField will always be something
   // get new and old field values
-  if (!newField) {
-    newField = getAfter(change, field);
-  }
+  // if (!newField) {
+  //   newField = getAfter(change, field);
+  // }
   let oldField = getBefore(change, field);
 
   if (friendly) {
-    newField = getFriendlyURL(newField);
-    oldField = getFriendlyURL(oldField);
+    newField = getFriendlyURL(newField.toString());
+    oldField = getFriendlyURL(oldField?.toString() ?? '') as T[keyof T];
   }
 
   const fieldChanged = newField !== oldField;
@@ -116,10 +122,10 @@ export async function uniqueField(
     await createField(uniquePath, newField, fkName, fkVal, uniqueCol);
   }
   if (deleteDoc(change)) {
-    await deleteField(uniquePath, oldField, uniqueCol);
+    await deleteField(uniquePath, oldField as keyof T, uniqueCol);
   }
   if (updateDoc(change) && fieldChanged) {
-    await updateField(uniquePath, oldField, newField, fkName, fkVal, uniqueCol);
+    await updateField(uniquePath, oldField as keyof T, newField, fkName, fkVal, uniqueCol);
   }
   return null;
 }

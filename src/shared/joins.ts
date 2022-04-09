@@ -1,5 +1,10 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { arrayValueChange, deleteDoc, writeDoc, triggerFunction } from './tools';
+import { bulkUpdate, bulkDelete } from './bulk';
+import { CollectionReference, DocumentSnapshot, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { DocumentRecord, isTimestamp } from './types';
+
 try {
   admin.initializeApp();
 } catch (e) {
@@ -14,61 +19,61 @@ const db = admin.firestore();
  * @param field - field to store updated fields
  * @param isMap - see if field dot notation equals map, default true
  */
-export async function updateJoinData(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
-  queryRef: FirebaseFirestore.Query,
-  fields: string[] | null,
-  field: string,
+export async function updateJoinData<T extends DocumentRecord<string, unknown>>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  queryRef: FirebaseFirestore.Query<T>,
+  fields: (keyof T)[],
+  field: keyof T,
   del = false,
   isMap = true,
 ) {
-  const { arrayValueChange, writeDoc } = require('./tools');
-  const { bulkUpdate, bulkDelete } = require('./bulk');
-
   // only update if necessary
-  if (!arrayValueChange(change, fields)) {
-    return null;
+  if (fields && !arrayValueChange(change, fields)) {
+    return;
   }
   // get array of doc references
   const querySnap = await queryRef.get();
-  const docRefs: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>[] = [];
-  querySnap.forEach((q: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>) => {
+  const docRefs: FirebaseFirestore.DocumentReference<T>[] = [];
+  querySnap.forEach((q: FirebaseFirestore.QueryDocumentSnapshot<T>) => {
     docRefs.push(q.ref);
   });
 
-  if (writeDoc) {
+  if (writeDoc(change)) {
     // get join data
-    const after: any = change.after.exists ? change.after.data() : null;
-    let joinData: any = {};
+    const after = change.after.exists ? change.after.data() : null;
+    let joinData = {} as T;
     if (fields) {
-      fields.forEach((f: string) => {
-        joinData[f] = after[f];
+      fields.forEach((f) => {
+        joinData[f] = after?.[f] as T[keyof T];
       });
     } else {
-      joinData = after;
+      joinData = after ?? ({} as T);
     }
     // get data
-    const data: any = {};
+    const data = {} as T;
 
     // handle map types...
-    if (isMap && field.includes('.')) {
-      const keys = field.split('.');
-      const last = keys.pop() || '';
-      keys.reduce((o, k) => (o[k] = o[k] || {}), data)[last] = joinData;
-    } else {
-      data[field] = joinData;
+    if (isMap && typeof field === 'string' && field.includes('.')) {
+      const keys = field.split('.') as (keyof T)[];
+      const last = keys.pop();
+      if (last) {
+        // Previously was: keys.reduce((o, k) => (o[k] = o[k] || {}), data)[last] = joinData;
+        keys.reduce((prev, curr) => ({ [curr]: {}, ...prev }), data)[last] = joinData as T[keyof T];
+      }
+    } else if (field in data) {
+      data[field] = joinData as T[keyof T];
     }
     // update bulk
     console.log('Update docs on ', field, ' field');
-    await bulkUpdate(docRefs, data);
+    bulkUpdate(docRefs, data);
   } else {
     // only delete if del = true
     if (del) {
       // delete bulk
-      await bulkDelete(docRefs);
+      bulkDelete(docRefs);
     }
   }
-  return null;
+  return;
 }
 /**
  * Create data to join on document
@@ -79,21 +84,18 @@ export async function updateJoinData(
  * @param data - data object to update
  * @param alwaysCreate - create even if not necessary
  */
-export async function createJoinData(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
-  targetRef: FirebaseFirestore.DocumentReference,
-  fields: string[],
-  field: string = '',
-  data: any = {},
+export async function createJoinData<T extends DocumentRecord<string, unknown>>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  targetRef: FirebaseFirestore.DocumentReference<T>,
+  fields: (keyof T)[],
+  field: keyof T = '',
+  data = {} as T,
   alwaysCreate = false,
-): Promise<any> {
+) {
   const newData = await getJoinData(change, targetRef, fields, field, data, alwaysCreate);
 
   // add data to document
-  const { triggerFunction } = require('./tools');
-  await triggerFunction(change, newData);
-
-  return null;
+  return triggerFunction(change, newData);
 }
 
 /**
@@ -105,14 +107,14 @@ export async function createJoinData(
  * @param data - data object to update
  * @param alwaysCreate - create even if not necessary
  */
-export async function getJoinData(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
-  targetRef: FirebaseFirestore.DocumentReference,
-  fields: string[],
-  field: string = '',
-  data: any = {},
+export async function getJoinData<T extends DocumentRecord<string, unknown>>(
+  change: functions.Change<DocumentSnapshot<T>>,
+  targetRef: FirebaseFirestore.DocumentReference<T>,
+  fields: (keyof T)[],
+  field: keyof T = '',
+  data = {} as T,
   alwaysCreate = false,
-): Promise<any> {
+): Promise<T> {
   // simplify input data
   const createDoc = change.after.exists && !change.before.exists;
 
@@ -122,12 +124,12 @@ export async function getJoinData(
   // see if need to create data
   if (createDoc || alwaysCreate) {
     const targetSnap = await targetRef.get();
-    const targetData: any = targetSnap.data();
-    const joinData: any = {};
-    fields.forEach((f: string) => {
-      joinData[f] = targetData[f];
+    const targetData = targetSnap.data();
+    const joinData = {} as T;
+    fields.forEach((f) => {
+      joinData[f] = (targetData?.[f] ?? {}) as T[keyof T];
     });
-    data[field] = joinData;
+    data[field] = joinData as T[keyof T];
   }
   console.log('Getting join data from ', targetRef.path, ' doc');
   return data;
@@ -144,15 +146,15 @@ export async function getJoinData(
  * @param data - if adding any other data to the document
  * @param alwaysAggregate - skip redundant aggregation, useful if not date sort
  */
-export async function aggregateData(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+export async function aggregateData<T extends DocumentRecord<string, unknown>>(
+  change: functions.Change<DocumentSnapshot<T>>,
   context: functions.EventContext,
-  targetRef: FirebaseFirestore.DocumentReference,
-  queryRef: FirebaseFirestore.Query,
-  fieldExceptions: string[] = [],
-  aggregateField: string = '',
-  n: number = 3,
-  data: any = {},
+  targetRef: FirebaseFirestore.DocumentReference<T>,
+  queryRef: FirebaseFirestore.Query<T>,
+  fieldExceptions: (keyof T)[] = [],
+  aggregateField: keyof T = '',
+  n = 3,
+  data = {} as T,
   alwaysAggregate = false,
 ) {
   // simplify event types
@@ -162,25 +164,27 @@ export async function aggregateData(
 
   // collection name and doc id
   const cols = context.resource.name.split('/');
-  const colId = cols[cols.length - 2];
+  const collectionId = cols[cols.length - 2];
   const docId = cols[cols.length - 1];
 
   if (!aggregateField) {
-    aggregateField = colId + 'Aggregate';
+    aggregateField = collectionId + 'Aggregate';
   }
-  data[aggregateField] = [];
+  data[aggregateField] = [] as T[keyof T];
 
   // doc references
   const targetSnap = await targetRef.get();
   const querySnap = await queryRef.limit(n).get();
-  const targetData: any = targetSnap.exists ? targetSnap.data() : { aggregateField };
-  const targetDocs: any[] = targetData[aggregateField];
+  const targetData = targetSnap.exists
+    ? (targetSnap.data() /* We know it exists */ as T)
+    : ({ [aggregateField]: aggregateField } as T);
+  const targetDocs = targetData[aggregateField] as T[];
 
   // check if aggregation is necessary
   if (popDoc && !alwaysAggregate) {
     if (targetDocs) {
       let docExists = false;
-      targetDocs.forEach((doc: any) => {
+      targetDocs.forEach((doc) => {
         if (doc.id === docId) {
           docExists = true;
         }
@@ -188,30 +192,47 @@ export async function aggregateData(
       // don't update aggregation if doc not already in aggregation
       // or if doc is not being created
       if (!docExists) {
-        return null;
+        return;
       }
     }
   }
   // get the latest data, save it
-  querySnap.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+  querySnap.docs.forEach((doc) => {
     // document data
     const d = doc.data();
-    const id = 'id';
-    d[id] = doc.id;
+    const id: keyof T = 'id';
+    d[id] = doc.id as T[keyof T];
 
     // don't save the field exceptions
-    fieldExceptions.forEach((field: string) => {
+    fieldExceptions.forEach((field) => {
       delete d[field];
     });
-    data[aggregateField].push(d);
+    const dataValue = data[aggregateField];
+    if (Array.isArray(dataValue)) {
+      dataValue.push(d);
+    }
   });
-  console.log('Aggregating ', colId, ' data on ', targetRef.path);
+  console.log('Aggregating ', collectionId, ' data on ', targetRef.path);
   // add aggregate information
-  await targetRef.set(data, { merge: true }).catch((e: any) => {
+  await targetRef.set(data, { merge: true }).catch((e: Error) => {
     console.log(e);
   });
-  return null;
+  return;
 }
+
+type ArrayIndexOptions<T extends DocumentRecord<string, unknown>> = {
+  fieldToIndex?: keyof T;
+  max?: number;
+  type?: 'array' | 'map';
+  indexFieldName?: keyof T;
+  indexColName?: string;
+  indexPath?: string;
+  docToIndex?: string;
+  docFieldsToIndex?: keyof T | (keyof T)[];
+  docFieldName?: keyof T;
+  docSortField?: keyof T;
+  docSortType?: 'id' | 'value' | null;
+};
 
 /**
  * @param change - change functions snapshot
@@ -230,159 +251,165 @@ export async function aggregateData(
  *   docSortType - sort by id or value (add id sort, or map value sort), default null
  * }
  */
-export async function arrayIndex(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+export async function arrayIndex<
+  T extends {
+    id: string;
+    updatedAt?: FieldValue | Timestamp;
+    createdAt?: FieldValue | Timestamp;
+  } & DocumentRecord<string, unknown>,
+>(
+  change: functions.Change<DocumentSnapshot<T>>,
   context: functions.EventContext,
-  _opts: {
-    fieldToIndex?: string,
-    max?: number,
-    type?: "array" | "map",
-    indexFieldName?: string,
-    indexColName?: string,
-    indexPath?: string,
-    docToIndex?: string,
-    docFieldsToIndex?: string | string[],
-    docFieldName?: string,
-    docSortField?: string,
-    docSortType?: "id" | "value" | null
-  } = {}
-
+  _opts: ArrayIndexOptions<T> = {},
 ): Promise<void> {
-
-  const path = context.resource.name.split("/").splice(5);
-  const parentDoc = path.slice(0, -2).join("/");
+  const path = context.resource.name.split('/').splice(5);
+  const parentDoc = path.slice(0, -2).join('/');
   const colName = path.slice(0, -1).pop() as string;
-  const rootColName = path.slice(0, -3).join("/");
+  const rootColName = path.slice(0, -3).join('/');
   const docId = path.pop();
 
   // define default options
-  const opts = {
-    fieldToIndex: _opts.fieldToIndex || "id",
-    max: _opts.max || 10000,
-    type: _opts.type || "array",
-    indexFieldName: _opts.indexFieldName || colName,
-    indexColName: _opts.indexColName || `${colName}_index`,
-    indexPath: _opts.indexPath || parentDoc,
-    docToIndex: _opts.docToIndex || parentDoc,
+  const opts: Required<Omit<ArrayIndexOptions<T>, 'docFieldsToIndex'>> &
+    Pick<ArrayIndexOptions<T>, 'docFieldsToIndex'> = {
+    fieldToIndex: _opts.fieldToIndex ?? 'id',
+    max: _opts.max ?? 10000,
+    type: _opts.type ?? 'array',
+    indexFieldName: _opts.indexFieldName ?? colName,
+    indexColName: _opts.indexColName ?? `${colName}_index`,
+    indexPath: _opts.indexPath ?? parentDoc,
+    docToIndex: _opts.docToIndex ?? parentDoc,
     docFieldsToIndex: _opts.docFieldsToIndex,
-    docFieldName: _opts.docFieldName || rootColName,
-    docSortField: _opts.docSortField || "createdAt",
-    docSortType: _opts.docSortType || null
+    docFieldName: _opts.docFieldName ?? rootColName,
+    docSortField: _opts.docSortField ?? 'createdAt',
+    docSortType: _opts.docSortType ?? null,
   };
 
-  const indexColRef = db.collection(`${opts.indexPath}/${opts.indexColName}`);
+  const indexColRef = db.collection(`${opts.indexPath}/${opts.indexColName}`) as CollectionReference<T>;
 
   // get latest index doc
-  const latestSnap = await indexColRef.orderBy("createdAt", "desc").limit(1).get();
-  const latest = latestSnap.empty ? {} : latestSnap.docs[0].data();
-
-  const { deleteDoc } = require('./tools');
+  const latestSnap = await indexColRef.orderBy('createdAt', 'desc').limit(1).get();
+  const latest = latestSnap.empty ? ({} as T) : latestSnap.docs[0].data();
 
   if (deleteDoc(change)) {
-
     // get data to be stored in field
-    const fieldValue = opts.fieldToIndex === "id"
-      ? docId
-      : (change.before.data() as any)[opts.fieldToIndex];
+    const fieldValue = opts.fieldToIndex === 'id' ? docId : change.before.data()?.[opts.fieldToIndex];
+
+    if (!fieldValue || typeof fieldValue !== 'string') {
+      return;
+    }
 
     // array or map type
-    const deleteVal = opts.type === "array"
-      ? admin.firestore.FieldValue.arrayRemove(fieldValue)
-      : { [fieldValue]: admin.firestore.FieldValue.delete() };
+    const deleteVal =
+      opts.type === 'array'
+        ? admin.firestore.FieldValue.arrayRemove(fieldValue)
+        : { [fieldValue]: admin.firestore.FieldValue.delete() };
 
     // don't delete if no doc to delete
     if (!latestSnap.empty) {
-      console.log(`Removing ${fieldValue} index from ${opts.indexFieldName} on ${opts.indexColName}`);
-      await indexColRef.doc(latestSnap.docs[0].id).set({
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        [opts.indexFieldName]: deleteVal
-      }, { merge: true });
+      console.log(`Removing ${fieldValue} index from ${opts.indexFieldName as string} on ${opts.indexColName}`);
+      await indexColRef.doc(latestSnap.docs[0].id).set(
+        {
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          [opts.indexFieldName]: deleteVal,
+        } as Partial<T>,
+        { merge: true },
+      );
     }
     // update or create doc
   } else {
-
     // get data to be stored in field
-    const fieldValue = opts.fieldToIndex === "id"
-      ? docId
-      : (change.after.data() as any)[opts.fieldToIndex];
+    const fieldValue = opts.fieldToIndex === 'id' ? docId : change.after.data()?.[opts.fieldToIndex];
+
+    if (!fieldValue || typeof fieldValue !== 'string') {
+      return;
+    }
 
     // get size of storage field
     let fieldLen = 0;
     if (!latestSnap.empty) {
       const field = latest[opts.indexFieldName];
-      fieldLen = opts.type === "array"
-        ? (field as any[]).length
-        : Object.keys(field).length;
+      fieldLen = opts.type === 'array' ? (field as unknown[]).length : Object.keys(field as object).length;
     }
 
     // create new doc if no doc or doc too big
     if (latestSnap.empty || fieldLen >= opts.max) {
-
       // aggregate data to doc
-      let indexData = (await db.doc(opts.docToIndex).get()).data() as any;
-      if (opts.docFieldsToIndex) {
-        indexData = typeof opts.docFieldsToIndex === "string"
-          ? opts.docFieldsToIndex
-          : opts.docFieldsToIndex
-            .reduce((obj, key) => ({ ...obj, [key]: indexData[key] }), {});
+      let indexData = (await db.doc(opts.docToIndex).get()).data() as T | undefined;
+      if (typeof opts.docFieldsToIndex === 'string') {
+        indexData = {
+          [opts.docFieldsToIndex]: opts.docFieldsToIndex,
+        } as T; /** TODO: Not to sure what's supposed to happen here */
+      } else if (Array.isArray(opts.docFieldsToIndex)) {
+        indexData = opts.docFieldsToIndex.reduce((obj, key) => ({ ...obj, [key]: indexData?.[key] }), {} as T);
       }
 
       // array or map type
-      let sortField = indexData[opts.docSortField];
-
-      if (sortField['_seconds']) {
-        sortField = admin.firestore.Timestamp.fromDate(
-          sortField.toDate()
-        );
+      if (indexData === undefined) {
+        return;
       }
+
+      const sortField = indexData[opts.docSortField];
+
+      // TODO: this seemed a little odd. see the newID section below
+      // if (isTimestamp(sortField)) {
+      //   sortField = Timestamp.fromDate(
+      //     sortField.toDate()
+      //   );
+      // }
 
       // get fb value
-      const newVal = opts.type === "array"
-        ? [fieldValue]
-        : {
-          [fieldValue]: opts.docSortType === "value"
-            ? sortField
-            : true
-        };
+      const newVal =
+        opts.type === 'array'
+          ? [fieldValue]
+          : {
+              [fieldValue]: opts.docSortType === 'value' ? sortField : true,
+            };
 
       // get new id possibly from type
-      const newID = opts.docSortType === 'id'
-        ? (sortField instanceof admin.firestore.Timestamp
-          ? indexData[opts.docSortField].toDate().toISOString()
-          : sortField) + '__' + indexColRef.doc().id
-        : indexColRef.doc().id;
+      const newID =
+        opts.docSortType === 'id'
+          ? (isTimestamp(sortField) ? sortField.toDate().toISOString() : (sortField as string)) +
+            '__' +
+            indexColRef.doc().id
+          : indexColRef.doc().id;
 
-      console.log(`Creating ${fieldValue} index for ${opts.indexFieldName} on ${opts.indexColName}`);
+      console.log(`Creating ${fieldValue} index for ${opts.indexFieldName.toString()} on ${opts.indexColName}`);
       await indexColRef.doc(newID).set({
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
         [opts.indexFieldName]: newVal,
-        [opts.docFieldName]: indexData
-      });
+        [opts.docFieldName]: indexData,
+      } as T);
       // update doc
     } else {
-
       const latestID = latestSnap.docs[0].id;
 
-      let sortField = latest[opts.docFieldName][opts.docSortField];
+      // TODO: don't understand what's going on here exactly
+      const latestFieldValue = latest[opts.docFieldName] as T;
+      const sortField = latestFieldValue[opts.docSortField];
 
+      // TODO: again, why the conversion back and forth?
       // if timestamp
-      if (sortField['_seconds']) {
-        sortField = admin.firestore.Timestamp.fromDate(
-          sortField.toDate()
-        );
-      }
+      // if (isTimestamp(sortField)) {
+      //   sortField = Timestamp.fromDate(
+      //     sortField.toDate()
+      //   );
+      // }
 
       // array or map type
-      const updateVal = opts.type === "array"
-        ? admin.firestore.FieldValue.arrayUnion(fieldValue)
-        : { [fieldValue]: opts.docSortType === "value" ? sortField : true };
+      const updateVal =
+        opts.type === 'array'
+          ? FieldValue.arrayUnion(fieldValue)
+          : { [fieldValue]: opts.docSortType === 'value' ? sortField : true };
 
       // add to existing doc
-      console.log(`Updating ${fieldValue} index for ${opts.indexFieldName} on ${opts.indexColName}`);
-      await indexColRef.doc(latestID).set({
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        [opts.indexFieldName]: updateVal
-      }, { merge: true });
+      console.log(`Updating ${fieldValue} index for ${opts.indexFieldName.toString()} on ${opts.indexColName}`);
+      await indexColRef.doc(latestID).set(
+        {
+          updatedAt: FieldValue.serverTimestamp(),
+          [opts.indexFieldName]: updateVal,
+        } as T,
+        { merge: true },
+      );
     }
   }
 }

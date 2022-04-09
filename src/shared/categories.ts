@@ -1,11 +1,15 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { queryCounter } from './counters';
+import { DocumentSnapshot } from 'firebase-admin/firestore';
 try {
   admin.initializeApp();
 } catch (e) {
   /* empty */
 }
 const db = admin.firestore();
+
+type CounterDocumentData = { [field: string]: string };
 
 /**
  * Count number of documents in a category
@@ -18,9 +22,9 @@ const db = admin.firestore();
  * @param catCol - default 'categories'
  */
 export async function catDocCounter(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot<CounterDocumentData>>,
   context: functions.EventContext,
-  counter: string = '',
+  counter = '',
   pathField = 'catPath',
   arrayField = 'catArray',
   field = 'category',
@@ -34,19 +38,22 @@ export async function catDocCounter(
     return null;
   }
   // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
-  const before: any = change.before.exists ? change.before.data() : null;
+  const after = change.after.exists ? change.after.data() : null;
+  const before = change.before.exists ? change.before.data() : null;
 
   // category field
-  const category = after ? after[field] : before[field];
+  const category = after ? after[field] : before?.[field];
+
+  if (category === null || category === undefined) {
+    return null;
+  }
 
   // collection name
-  const colId = context.resource.name.split('/')[5];
+  const collectionId = context.resource.name.split('/')[5];
 
   if (!counter) {
-    counter = colId + 'Count';
+    counter = collectionId + 'Count';
   }
-  const { queryCounter } = require('./counters');
 
   // fieldCount on categoriesDoc(s)
   let _category = category;
@@ -57,7 +64,7 @@ export async function catDocCounter(
     const catRef = db.doc(`${catCol}/${catSnap.docs[0].id}`);
 
     // get cat query and update it
-    const catsQuery = db.collection(colId).where(arrayField, 'array-contains', _category);
+    const catsQuery = db.collection(collectionId).where(arrayField, 'array-contains', _category);
     await queryCounter(change, context, catsQuery, catRef, counter);
 
     // get parent
@@ -74,9 +81,9 @@ export async function catDocCounter(
  * @param pathField - default catPath
  */
 export async function subCatCounter(
-  change: functions.Change<functions.firestore.DocumentSnapshot>,
+  change: functions.Change<DocumentSnapshot<CounterDocumentData>>,
   context: functions.EventContext,
-  counter: string = '',
+  counter = '',
   parentField = 'parent',
   pathField = 'catPath',
 ) {
@@ -86,29 +93,32 @@ export async function subCatCounter(
   const writeDoc = createDoc || updateDoc;
 
   // simplify input data
-  const after: any = change.after.exists ? change.after.data() : null;
-  const before: any = change.before.exists ? change.before.data() : null;
+  const after = change.after.exists ? change.after.data() : null;
+  const before = change.before.exists ? change.before.data() : null;
 
   // collection name
-  const colId = context.resource.name.split('/')[5];
+  const collectionId = context.resource.name.split('/')[5];
 
   // get category variables
-  const parent = writeDoc ? after[parentField] : before[parentField];
+  const parent = writeDoc ? after?.[parentField] : before?.[parentField];
+
+  if (parent === null || parent === undefined) {
+    return null;
+  }
 
   if (!counter) {
-    counter = colId + 'Count';
+    counter = collectionId + 'Count';
   }
-  const { queryCounter } = require('./counters');
 
   let _category = parent;
   while (_category !== '') {
     // get parent category doc
-    const catSearch = db.collection(colId).where(pathField, '==', _category);
+    const catSearch = db.collection(collectionId).where(pathField, '==', _category);
     const catSnap = await catSearch.get();
-    const catRef = db.doc(`${colId}/${catSnap.docs[0].id}`);
+    const catRef = db.doc(`${collectionId}/${catSnap.docs[0].id}`);
 
     // get cat query and update it
-    const catsQuery = db.collection(colId).where('parent', '==', _category);
+    const catsQuery = db.collection(collectionId).where('parent', '==', _category);
     console.log('Updating subcategory count on ', _category, ' doc');
     await queryCounter(change, context, catsQuery, catRef, counter);
 

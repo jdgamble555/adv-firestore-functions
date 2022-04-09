@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-ignore
 /**
  * These functions do not do anything and are for future development only!!!
  * You can basically ignore this file.
