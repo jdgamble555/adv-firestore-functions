@@ -1,3 +1,9 @@
+## I am not longer keeping up with this project, so feel free to fork it!
+
+Please check my website [Fireblog.io](https://fireblog.io) for updates. 
+
+_______
+
 # Advanced Firestore Functions
 
 These are the back-end firestore functions that will allow you to create easy-to-use indexes. 
